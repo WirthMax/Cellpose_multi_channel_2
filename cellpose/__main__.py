@@ -6,7 +6,8 @@ import sys, os, glob, pathlib, time
 import numpy as np
 from natsort import natsorted
 from tqdm import tqdm
-from cellpose import utils, models, io, version_str, train, denoise
+from cellpose import utils, models, io, train, denoise
+from cellpose import version_str
 from cellpose.cli import get_arg_parser
 
 try:

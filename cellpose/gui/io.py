@@ -111,7 +111,7 @@ def _load_image(parent, filename=None, load_seg=True, load_3D=False):
     load_mask = False
     if load_seg:
         if os.path.isfile(manual_file) and not parent.autoloadMasks.isChecked():
-            _load_seg(parent, manual_file, image=imread(filename), image_file=filename,
+            _load_seg(parent, manual_file, image=imread(filename)[0], image_file=filename,
                       load_3D=load_3D)
             return
         elif parent.autoloadMasks.isChecked():
@@ -122,7 +122,7 @@ def _load_image(parent, filename=None, load_seg=True, load_3D=False):
             load_mask = True if os.path.isfile(mask_file) else False
     try:
         print(f"GUI_INFO: loading image: {filename}")
-        image = imread(filename)
+        image, metainf = imread(filename)
         parent.loaded = True
     except Exception as e:
         print("ERROR: images not compatible")
@@ -130,6 +130,7 @@ def _load_image(parent, filename=None, load_seg=True, load_3D=False):
 
     if parent.loaded:
         parent.reset()
+        
         parent.filename = filename
         filename = os.path.split(parent.filename)[-1]
         _initialize_images(parent, image, load_3D=load_3D)
@@ -284,7 +285,7 @@ def _load_seg(parent, filename=None, image=None, image_file=None, load_3D=False)
         if found_image:
             try:
                 print(parent.filename)
-                image = imread(parent.filename)
+                image, metainf = imread(parent.filename)
             except:
                 parent.loaded = False
                 found_image = False

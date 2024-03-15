@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 from . import version_str
 from roifile import ImagejRoi, roiwrite
+import ast
 
 try:
     from qtpy import QtGui, QtCore, Qt, QtWidgets
@@ -158,6 +159,12 @@ def imread(filename):
     ext = os.path.splitext(filename)[-1].lower()
     if ext == ".tif" or ext == ".tiff":
         with tifffile.TiffFile(filename) as tif:
+            
+            try:
+                metainf = ast.literal_eval(tif.pages[0].description)
+            except:
+                metainf = None
+                
             ltif = len(tif.pages)
             try:
                 full_shape = tif.shaped_metadata[0]["shape"]
@@ -178,10 +185,10 @@ def imread(filename):
                 for i, page in enumerate(tqdm(tif.series[0])):
                     img[i] = page.asarray()
                 img = img.reshape(full_shape)
-        return img
+        return img, metainf
     elif ext == ".dax":
         img = load_dax(filename)
-        return img
+        return img, None
     elif ext == ".nd2":
         if not ND2:
             io_logger.critical("ERROR: need to 'pip install nd2' to load in .nd2 file")
@@ -190,21 +197,21 @@ def imread(filename):
         if not NRRD:
             io_logger.critical(
                 "ERROR: need to 'pip install pynrrd' to load in .nrrd file")
-            return None
+            return None, None
         else:
             img, metadata = nrrd.read(filename)
             if img.ndim == 3:
                 img = img.transpose(2, 0, 1)
-            return img
+            return img, metadata
     elif ext != ".npy":
         try:
             img = cv2.imread(filename, -1)  #cv2.LOAD_IMAGE_ANYDEPTH)
             if img.ndim > 2:
                 img = img[..., [2, 1, 0]]
-            return img
+            return img, None
         except Exception as e:
             io_logger.critical("ERROR: could not read file, %s" % e)
-            return None
+            return None, None
     else:
         try:
             dat = np.load(filename, allow_pickle=True).item()
@@ -423,7 +430,7 @@ def load_images_labels(tdir, mask_filter="_masks", image_filter=None,
     k = 0
     for n in range(nimg):
         if os.path.isfile(label_names[n]) or os.path.isfile(flow_names[0]):
-            image = imread(image_names[n])
+            image, metainf = imread(image_names[n])
             if label_names is not None:
                 label = imread(label_names[n])
             if flow_names is not None:
@@ -436,7 +443,7 @@ def load_images_labels(tdir, mask_filter="_masks", image_filter=None,
             labels.append(label)
             k += 1
     io_logger.info(f"{k} / {nimg} images in {tdir} folder have labels")
-    return images, labels, image_names
+    return images, labels, image_names, metainf
 
 def load_train_test_data(train_dir, test_dir=None, image_filter=None,
                          mask_filter="_masks", look_one_level_down=False):
@@ -458,13 +465,13 @@ def load_train_test_data(train_dir, test_dir=None, image_filter=None,
         test_labels (list, optional): A list of labels corresponding to the testing images. None if test_dir is not provided.
         test_image_names (list, optional): A list of names of the testing images. None if test_dir is not provided.
     """
-    images, labels, image_names = load_images_labels(train_dir, mask_filter,
+    images, labels, image_names, metainf = load_images_labels(train_dir, mask_filter,
                                                      image_filter, look_one_level_down)
 
     # testing data
     test_images, test_labels, test_image_names = None, None, None
     if test_dir is not None:
-        test_images, test_labels, test_image_names = load_images_labels(
+        test_images, test_labels, test_image_names, metainf = load_images_labels(
             test_dir, mask_filter, image_filter, look_one_level_down)
 
     return images, labels, image_names, test_images, test_labels, test_image_names

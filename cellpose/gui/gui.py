@@ -6,8 +6,12 @@ import sys, os, pathlib, warnings, datetime, time, copy
 
 from qtpy import QtGui, QtCore
 from superqt import QRangeSlider, QCollapsible
-from qtpy.QtWidgets import QScrollArea, QMainWindow, QApplication, QWidget, QScrollBar, QComboBox, QGridLayout, QPushButton, QFrame, QCheckBox, QLabel, QProgressBar, QLineEdit, QMessageBox, QGroupBox
+from qtpy.QtWidgets import QScrollArea, QMainWindow, QApplication, QWidget, QScrollBar, QComboBox, QGridLayout, QPushButton, QFrame, QCheckBox, QLabel, QProgressBar, QLineEdit, QMessageBox, QGroupBox, QComboBox
 import pyqtgraph as pg
+from PyQt5.QtCore import Qt, QEvent, pyqtSignal, pyqtSlot
+from PyQt5.QtGui import QStandardItem, QFontMetrics
+
+
 
 import numpy as np
 from scipy.stats import mode
@@ -20,6 +24,9 @@ from ..io import get_image_files, imsave, imread
 from ..transforms import resize_image, normalize99, normalize99_tile, smooth_sharpen_img
 from ..models import normalize_default
 from ..plot import disk
+
+import random
+from colordict import ColorDict
 
 try:
     import matplotlib.pyplot as plt
@@ -36,6 +43,148 @@ except:
     SERVER_UPLOAD = False
 
 Horizontal = QtCore.Qt.Orientation.Horizontal
+
+
+class CheckableComboBox(QComboBox):
+    # signal for updating
+    update_signal = pyqtSignal(str)
+    def __init__(self) -> None:
+        super(CheckableComboBox, self).__init__()
+        self.setEditable(True)
+        self.lineEdit().setReadOnly(True)
+        self.closeOnLineEditClick = False
+
+        self.lineEdit().installEventFilter(self)
+        self.view().viewport().installEventFilter(self)
+
+        self.model().dataChanged.connect(self.updateLineEditField)
+        
+
+    def __len__(self):
+        return self.model().rowCount()
+    
+    @pyqtSlot()
+    def eventFilter(self, widget, event):
+        # open and close the popup
+        if widget == self.lineEdit():
+            if event.type() == QEvent.MouseButtonRelease:
+                if self.closeOnLineEditClick:
+                    self.hidePopup
+                else:
+                    self.showPopup
+                return True
+            return super().eventFilter(widget, event)
+        
+        
+        if widget == self.view().viewport():
+            if event.type() == QEvent.MouseButtonRelease:
+                index = self.view().indexAt(event.pos())
+                item = self.model().item(index.row())
+                
+                if item.checkState() == Qt.Checked:
+                    item.setCheckState(Qt.Unchecked)
+                    if len(self.currentIndex()) == 0:
+                        self.model().item(0).setCheckState(Qt.Checked)
+
+                else:
+                    item.setCheckState(Qt.Checked)
+
+                    # if all is selected, deselect the rest
+                    if index.row() in [0, 1, 2]:
+                        elems = list(range(self.model().rowCount()))
+                        elems.remove(index.row())
+                        for i in elems:
+                            self.model().item(i).setCheckState(Qt.Unchecked)
+                    
+                    # if not all, gray or spectral is selected
+                    else:
+                        for i in range(3):
+                            self.model().item(i).setCheckState(Qt.Unchecked)
+
+                self.update_signal.emit("update")
+                return True
+            return super().eventFilter(widget, event)
+        
+    def setCurrentIndex(self, ind):
+        super().setCurrentIndex(ind)
+        self.model().item(ind).setCheckState(Qt.Checked)
+
+    def hidePopup(self):
+        super().hidePopup()
+        self.startTimer(100)
+
+    def addItems(self, texts, datalist=None):
+        for i, text in enumerate(texts):
+            try:
+                data = datalist[i]
+            except (TypeError, IndexError):
+                data = None
+            self.addItem(text, data)
+
+    def addItem(self, text, data=None):
+        item = QStandardItem()
+        item.setText(text)
+        if data is None:
+            item.setData(text)
+        else:
+            item.setData(data)
+
+        # enable checkbox
+        item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
+        item.setData(Qt.CheckState.Unchecked, Qt.ItemDataRole.CheckStateRole)
+        self.model().appendRow(item)
+
+    def updateLineEditField(self):
+        text_container = []
+        for i in  range(self.model().rowCount()):
+            if self.model().item(i).checkState() == Qt.Checked:
+                text_container.append(self.model().item(i).text())
+        text_string = ", ".join(text_container)
+        # Compute elided text (with "...")
+        metrics = QFontMetrics(self.lineEdit().font())
+        elidedText = metrics.elidedText(text_string, Qt.TextElideMode.ElideRight, self.lineEdit().width())
+
+        self.lineEdit().setText(elidedText)
+
+    def currentData(self):
+        res = list()
+        for i in range(self.model().rowCount()):
+            if self.model().item(i).checkState() == Qt.CheckState.Checked:
+                res.append(self.model().item(i).data())
+        return res
+
+    def currentOptions(self):
+        res = list()
+        for i in range(self.model().rowCount()):
+            if self.model().item(i).checkState() == Qt.CheckState.Checked:
+                res.append((self.model().item(i).text(),i))
+        return res
+
+    def currentIndex(self):
+        res = list()
+        for i in range(self.model().rowCount()):
+            if self.model().item(i).checkState() == Qt.CheckState.Checked:
+                res.append(i)
+        return res
+    
+    def Data(self):
+        res = list()
+        for i in range(self.model().rowCount()):
+            res.append(self.model().item(i).data())
+        return res
+
+    def Options(self):
+        res = list()
+        for i in range(self.model().rowCount()):
+            res.append((self.model().item(i).text(),i))
+        return res
+
+    def Index(self):
+        res = list()
+        for i in range(self.model().rowCount()):
+            res.append(i)
+        return res
+
 
 
 class Slider(QRangeSlider):
@@ -185,6 +334,15 @@ class MainW(QMainWindow):
 
     def __init__(self, image=None, logger=None):
         super(MainW, self).__init__()
+        
+        # get the colors from the color dict        
+        self.color_dict = ColorDict(palettes=['fluorescent'])
+        self.color_names = list(self.color_dict.keys())
+        random.Random(0).shuffle(self.color_names)
+        self.color_dict["All"] = [255, 255, 255]
+        self.color_dict["gray"] = [193, 193, 193]
+        self.color_dict["spectral"] = [19, 132, 245]
+        self.color_names = ["All", "gray", "spectral"] + self.color_names
 
         self.logger = logger
         pg.setConfigOptions(imageAxisOrder="row-major")
@@ -282,7 +440,6 @@ class MainW(QMainWindow):
         self.restore = None
         self.ratio = 1.
         self.reset()
-
         # if called with image, load it
         if image is not None:
             self.filename = image
@@ -304,6 +461,46 @@ class MainW(QMainWindow):
         self.setAcceptDrops(True)
         self.win.show()
         self.show()
+        
+    
+    def update_channel_cols(self):
+        # set the number of colors in the channel selection box to the number
+        # of channels
+
+        if self.nchan > len(self.color_names):
+            print("expanding the colordict")
+            self.color_dict = ColorDict()
+            self.color_names = list(self.color_dict.keys())
+            random.Random(0).shuffle(self.color_names)
+            self.color_dict["All"] = [255, 255, 255]
+            self.color_dict["gray"] = [193, 193, 193]
+            self.color_dict["spectral"] = [19, 132, 245]
+            self.color_names = ["All", "gray", "spectral"] + self.color_names
+
+
+        if type(self.metainf) == dict and not len(list(self.metainf.keys())) == 0:
+            names = list(self.metainf.values())
+        else:
+            names = self.color_names[3:self.nchan+3]
+
+        self.color_options = tuple(["All","gray","spectral"] + names)
+
+        options2 = ['0: gray'] + names
+        options3 = ['0: none'] + names
+            
+        # update RGB dropdown
+        self.RGBDropDown.clear()
+        
+        self.RGBDropDown.addItems(self.color_options)
+        self.RGBDropDown.setCurrentIndex(0)
+
+        # also add the additional options for the model channel
+        self.ChannelChoose[0].clear()
+        self.ChannelChoose[0].addItems(options2)
+        self.ChannelChoose[1].clear()
+        self.ChannelChoose[1].addItems(options3)
+
+        
 
     def help_window(self):
         HW = guiparts.HelpWindow(self)
@@ -322,6 +519,13 @@ class MainW(QMainWindow):
         self.boldmedfont = QtGui.QFont("Arial", 9, QtGui.QFont.Bold)
         self.medfont = QtGui.QFont("Arial", 9)
         self.smallfont = QtGui.QFont("Arial", 8)
+        
+        self.dropdowns = ("color: white;"
+                        "background-color: rgb(40,40,40);"
+                        "selection-color: white;"
+                        "selection-background-color: rgb(50,100,50);")
+        self.checkstyle = "color: rgb(190,190,190);"
+        
 
         b = 0
         self.satBox = QGroupBox("Views")
@@ -332,13 +536,23 @@ class MainW(QMainWindow):
 
         b0 = 0
         self.view = 0  # 0=image, 1=flowsXY, 2=flowsZ, 3=cellprob
-        self.color = 0  # 0=RGB, 1=gray, 2=R, 3=G, 4=B
-        self.RGBDropDown = QComboBox()
-        self.RGBDropDown.addItems(
-            ["RGB", "red=R", "green=G", "blue=B", "gray", "spectral"])
+        self.color = [0]  # 0=RGB, 1=gray, 2=R, 3=G, 4=B
+        # self.RGBDropDown = QComboBox()
+        # self.RGBDropDown.addItems(
+        #     ["RGB", "red=R", "green=G", "blue=B", "gray", "spectral"])
+        # self.RGBDropDown.setFont(self.medfont)
+        # self.RGBDropDown.currentIndexChanged.connect(self.color_choose)
+        # self.satBoxG.addWidget(self.RGBDropDown, b0, 0, 1, 3)
+        self.RGBDropDown = CheckableComboBox()
+        self.RGBDropDown.addItems(["All","gray","spectral"])
+        
         self.RGBDropDown.setFont(self.medfont)
-        self.RGBDropDown.currentIndexChanged.connect(self.color_choose)
+        self.RGBDropDown.setStyleSheet(self.dropdowns)
+        self.RGBDropDown.setCurrentIndex(0)
+        # self.RGBDropDown.model().dataChanged.connect(self.color_choose)
+        self.RGBDropDown.update_signal.connect(self.color_choose)
         self.satBoxG.addWidget(self.RGBDropDown, b0, 0, 1, 3)
+        
 
         label = QLabel("<p>[&uarr; / &darr; or W/S]</p>")
         label.setFont(self.smallfont)
@@ -352,6 +566,7 @@ class MainW(QMainWindow):
         self.ViewDropDown.addItems(["image", "gradXY", "cellprob", "restored"])
         self.ViewDropDown.setFont(self.medfont)
         self.ViewDropDown.model().item(3).setEnabled(False)
+        
         self.ViewDropDown.currentIndexChanged.connect(self.update_plot)
         self.satBoxG.addWidget(self.ViewDropDown, b0, 0, 2, 3)
 
@@ -893,30 +1108,30 @@ class MainW(QMainWindow):
 
                 # can change background or stroke size if cell not finished
                 if event.key() == QtCore.Qt.Key_Up or event.key() == QtCore.Qt.Key_W:
-                    self.color = (self.color - 1) % (6)
-                    self.RGBDropDown.setCurrentIndex(self.color)
+                    self.color[0] = (self.color[0] - 1) % (6)
+                    self.RGBDropDown.setCurrentIndex(self.color[0] )
                 elif event.key() == QtCore.Qt.Key_Down or event.key(
                 ) == QtCore.Qt.Key_S:
-                    self.color = (self.color + 1) % (6)
-                    self.RGBDropDown.setCurrentIndex(self.color)
+                    self.color[0] = (self.color[0] + 1) % (6)
+                    self.RGBDropDown.setCurrentIndex(self.color[0] )
                 elif event.key() == QtCore.Qt.Key_R:
-                    if self.color != 1:
-                        self.color = 1
+                    if self.color[0] != 1:
+                        self.color[0] = 1
                     else:
-                        self.color = 0
-                    self.RGBDropDown.setCurrentIndex(self.color)
+                        self.color[0] = 0
+                    self.RGBDropDown.setCurrentIndex(self.color[0] )
                 elif event.key() == QtCore.Qt.Key_G:
-                    if self.color != 2:
-                        self.color = 2
+                    if self.color[0] != 2:
+                        self.color[0] = 2
                     else:
-                        self.color = 0
-                    self.RGBDropDown.setCurrentIndex(self.color)
+                        self.color[0] = 0
+                    self.RGBDropDown.setCurrentIndex(self.color[0] )
                 elif event.key() == QtCore.Qt.Key_B:
-                    if self.color != 3:
-                        self.color = 3
+                    if self.color[0] != 3:
+                        self.color[0] = 3
                     else:
-                        self.color = 0
-                    self.RGBDropDown.setCurrentIndex(self.color)
+                        self.color[0] = 0
+                    self.RGBDropDown.setCurrentIndex(self.color[0] )
                 elif (event.key() == QtCore.Qt.Key_Comma or
                       event.key() == QtCore.Qt.Key_Period):
                     count = self.BrushChoose.count()
@@ -1190,6 +1405,7 @@ class MainW(QMainWindow):
         self.nchan = 3
         self.loaded = False
         self.channel = [0, 1]
+        self.metainf = {}
         self.current_point_set = []
         self.in_stroke = False
         self.strokes = []
@@ -1229,17 +1445,18 @@ class MainW(QMainWindow):
         self.ismanual = np.zeros(0, "bool")
 
         # -- set menus to default -- #
-        self.color = 0
-        self.RGBDropDown.setCurrentIndex(self.color)
+        self.color = [0]
+        self.RGBDropDown.setCurrentIndex(0)
         self.view = 0
         self.ViewDropDown.setCurrentIndex(0)
         self.ViewDropDown.model().item(self.ViewDropDown.count() - 1).setEnabled(False)
         self.delete_restore()
+        self.update_channel_cols()
 
         self.BrushChoose.setCurrentIndex(1)
         self.clear_all()
 
-        #self.update_plot()
+        # self.update_plot()
         self.filename = []
         self.loaded = False
         self.recompute_masks = False
@@ -1248,6 +1465,7 @@ class MainW(QMainWindow):
         self.removing_cells_list = []
         self.removing_region = False
         self.remove_roi_obj = None
+
 
     def delete_restore(self):
         """ delete restored imgs but don't reset settings """
@@ -1594,6 +1812,8 @@ class MainW(QMainWindow):
 
     def color_choose(self):
         self.color = self.RGBDropDown.currentIndex()
+        if len(self.color) == 0:
+            self.color = [0]
         self.view = 0
         self.ViewDropDown.setCurrentIndex(self.view)
         self.update_plot()
@@ -1616,13 +1836,17 @@ class MainW(QMainWindow):
             self.update_scale()
             self.update_layer()
 
+        print("Update plot", self.color)
         if self.view == 0 or self.view == self.ViewDropDown.count() - 1:
             image = self.stack[
                 self.currentZ] if self.view == 0 else self.stack_filtered[self.currentZ]
             if self.nchan == 1:
                 # show single channel
                 image = image[..., 0]
-            if self.color == 0:
+            print("Update plot", self.color)
+            # show RGB image
+            if self.color[0] == 0:
+                print("OPTION 1")
                 self.img.setImage(image, autoLevels=False, lut=None)
                 if self.nchan > 1:
                     levels = np.array([
@@ -1633,20 +1857,25 @@ class MainW(QMainWindow):
                     self.img.setLevels(levels)
                 else:
                     self.img.setLevels(self.saturation[0][self.currentZ])
-            elif self.color > 0 and self.color < 4:
+            # show individual channel image
+            elif self.color[0] > 0 and self.color[0] < 4:
+                print("OPTION 2")
                 if self.nchan > 1:
-                    image = image[:, :, self.color - 1]
-                self.img.setImage(image, autoLevels=False, lut=self.cmap[self.color])
+                    image = image[:, :, self.color[0] - 1]
+                self.img.setImage(image, autoLevels=False, lut=self.cmap[self.color[0]])
                 if self.nchan > 1:
-                    self.img.setLevels(self.saturation[self.color - 1][self.currentZ])
+                    self.img.setLevels(self.saturation[self.color[0] - 1][self.currentZ])
                 else:
                     self.img.setLevels(self.saturation[0][self.currentZ])
-            elif self.color == 4:
+            # show spectral / gray
+            elif self.color[0] == 4:
+                print("OPTION 3")
                 if self.nchan > 1:
                     image = image.mean(axis=-1)
                 self.img.setImage(image, autoLevels=False, lut=None)
                 self.img.setLevels(self.saturation[0][self.currentZ])
-            elif self.color == 5:
+            elif self.color[0] == 5:
+                print("OPTION 4")
                 if self.nchan > 1:
                     image = image.mean(axis=-1)
                 self.img.setImage(image, autoLevels=False, lut=self.cmap[0])
@@ -2387,7 +2616,8 @@ class MainW(QMainWindow):
             self.update_scale()
             # if denoised in grayscale, show in grayscale
             if channels[0] == 0:
-                self.RGBDropDown.setCurrentIndex(4)
+                print("setting the image to grayscale")
+                self.RGBDropDown.setCurrentIndex(1)
 
             self.ViewDropDown.model().item(self.ViewDropDown.count() -
                                            1).setEnabled(True)
