@@ -2,6 +2,8 @@
 Copyright © 2023 Howard Hughes Medical Institute, Authored by Carsen Stringer and Marius Pachitariu.
 """
 
+from http.client import TOO_MANY_REQUESTS
+from ipaddress import collapse_addresses
 import sys, os, pathlib, warnings, datetime, time, copy
 
 from qtpy import QtGui, QtCore
@@ -9,8 +11,7 @@ from superqt import QRangeSlider, QCollapsible
 from qtpy.QtWidgets import QScrollArea, QMainWindow, QApplication, QWidget, QScrollBar, QComboBox, QGridLayout, QPushButton, QFrame, QCheckBox, QLabel, QProgressBar, QLineEdit, QMessageBox, QGroupBox, QComboBox
 import pyqtgraph as pg
 from PyQt5.QtCore import Qt, QEvent, pyqtSignal, pyqtSlot
-from PyQt5.QtGui import QStandardItem, QFontMetrics
-
+from PyQt5.QtGui import QStandardItem, QFontMetrics, QImage
 
 
 import numpy as np
@@ -189,11 +190,13 @@ class CheckableComboBox(QComboBox):
 
 class Slider(QRangeSlider):
 
-    def __init__(self, parent, name, color):
+    def __init__(self, parent, name, color, label):
         super().__init__(Horizontal)
         self.setEnabled(False)
         self.valueChanged.connect(lambda: self.levelChanged(parent))
         self.name = name
+        self.color = color
+        self.label = label
 
         self.setStyleSheet(""" QSlider{
                              background-color: transparent;
@@ -477,6 +480,7 @@ class MainW(QMainWindow):
             self.color_dict["spectral"] = [19, 132, 245]
             self.color_names = ["All", "gray", "spectral"] + self.color_names
 
+        print("UPDATE CHANNEL COLS metainf:", self.metainf)
 
         if type(self.metainf) == dict and not len(list(self.metainf.keys())) == 0:
             names = list(self.metainf.values())
@@ -499,6 +503,8 @@ class MainW(QMainWindow):
         self.ChannelChoose[0].addItems(options2)
         self.ChannelChoose[1].clear()
         self.ChannelChoose[1].addItems(options3)
+        
+        print("UPDATE CHANNEL COLS Checkbox names:", self.RGBDropDown.Data())
 
         
 
@@ -513,6 +519,43 @@ class MainW(QMainWindow):
     def gui_window(self):
         EG = guiparts.ExampleGUI(self)
         EG.show()
+
+    def _init_sliders(self, b0 = 4):
+        # get all channel names from the image
+        names = self.RGBDropDown.Data()
+        # initiate self.sliders
+        self.sliders = {}
+        self.saturation = {}
+        # generate slider and labels for every channel
+        for i, name in enumerate(names):
+            # first, hardcode the standard three colors
+            if name == "All":
+                color = tuple([255, 255, 255])
+            elif name == "gray":
+                color = tuple([193, 193, 193])
+            elif name == "spectral":
+                color = tuple([19, 132, 245])
+            # the remaining options are coloured based on the colordict
+            else:
+                color = self.color_dict[self.color_names[i-3]]
+            
+            # set the saturation
+            self.saturation[name] = [[0, 255]]* self.NZ
+            
+            # generate label
+            label = QLabel(name + ":")
+            label.setStyleSheet(f"color: rgb{color};")
+            label.setFont(self.boldmedfont)
+            # generate slider
+            self.sliders[name] = Slider(self, name, color, label)
+            self.sliders[name].setToolTip(
+                "NOTE: manually changing the saturation bars does not affect normalization in segmentation"
+            )
+            self.sliders[name].setHidden(True)
+            self.sliders[name].setEnabled(False)
+        print("SATURATION AFTER INIT SLIDERS:", self.saturation)
+
+        
 
     def make_buttons(self):
         self.boldfont = QtGui.QFont("Arial", 11, QtGui.QFont.Bold)
@@ -587,29 +630,31 @@ class MainW(QMainWindow):
         self.autobtn.setChecked(True)
         self.satBoxG.addWidget(self.autobtn, b0, 1, 1, 8)
 
-        b0 += 1
-        self.sliders = []
-        colors = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [100, 100, 100]]
-        colornames = ["red", "Chartreuse", "DodgerBlue"]
-        names = ["red", "green", "blue"]
-        for r in range(3):
-            b0 += 1
-            if r == 0:
-                label = QLabel('<font color="gray">gray/</font><br>red')
-            else:
-                label = QLabel(names[r] + ":")
-            label.setStyleSheet(f"color: {colornames[r]}")
-            label.setFont(self.boldmedfont)
-            self.satBoxG.addWidget(label, b0, 0, 1, 2)
-            self.sliders.append(Slider(self, names[r], colors[r]))
-            self.sliders[-1].setMinimum(-.1)
-            self.sliders[-1].setMaximum(255.1)
-            self.sliders[-1].setValue([0, 255])
-            self.sliders[-1].setToolTip(
-                "NOTE: manually changing the saturation bars does not affect normalization in segmentation"
-            )
-            #self.sliders[-1].setTickPosition(QSlider.TicksRight)
-            self.satBoxG.addWidget(self.sliders[-1], b0, 2, 1, 7)
+        self.NZ = 1
+        self._init_sliders(b0+1)
+        # b0 += 1
+        # self.sliders = []
+        # colors = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [100, 100, 100]]
+        # colornames = ["red", "Chartreuse", "DodgerBlue"]
+        # names = ["red", "green", "blue"]
+        # for r in range(3):
+        #     b0 += 1
+        #     if r == 0:
+        #         label = QLabel('<font color="gray">gray/</font><br>red')
+        #     else:
+        #         label = QLabel(names[r] + ":")
+        #     label.setStyleSheet(f"color: {colornames[r]}")
+        #     label.setFont(self.boldmedfont)
+        #     self.satBoxG.addWidget(label, b0, 0, 1, 2)
+        #     self.sliders.append(Slider(self, names[r], colors[r]))
+        #     self.sliders[-1].setMinimum(-.1)
+        #     self.sliders[-1].setMaximum(255.1)
+        #     self.sliders[-1].setValue([0, 255])
+        #     self.sliders[-1].setToolTip(
+        #         "NOTE: manually changing the saturation bars does not affect normalization in segmentation"
+        #     )
+        #     #self.sliders[-1].setTickPosition(QSlider.TicksRight)
+        #     self.satBoxG.addWidget(self.sliders[-1], b0, 2, 1, 7)
 
         b += 1
         self.drawBox = QGroupBox("Drawing")
@@ -1064,15 +1109,14 @@ class MainW(QMainWindow):
 
         return b
 
-    def level_change(self, r):
-        r = ["red", "green", "blue"].index(r)
+    def level_change(self, col):
         if self.loaded:
-            sval = self.sliders[r].value()
-            self.saturation[r][self.currentZ] = sval
+            sval = self.sliders[col].value()
+            self.saturation[col][self.currentZ] = sval
             if not self.autobtn.isChecked():
-                for r in range(3):
-                    for i in range(len(self.saturation[r])):
-                        self.saturation[r][i] = self.saturation[r][self.currentZ]
+                for chan in self.RGBDropDown.currentData():
+                    for i in range(len(self.saturation[chan])):
+                        self.saturation[chan][i] = self.saturation[chan][self.currentZ]
             self.update_plot()
 
     def keyPressEvent(self, event):
@@ -1239,10 +1283,8 @@ class MainW(QMainWindow):
         self.newmodel.setEnabled(True)
         self.loadMasks.setEnabled(True)
 
-        for n in range(self.nchan):
-            self.sliders[n].setEnabled(True)
-        for n in range(self.nchan, 3):
-            self.sliders[n].setEnabled(True)
+        # for chan in self.RGBDropDown.currentData():
+        #     self.sliders[chan].setEnabled(True)
 
         self.toggle_mask_ops()
 
@@ -1386,8 +1428,8 @@ class MainW(QMainWindow):
         self.win.addItem(self.p0, 0, 0, rowspan=1, colspan=1)
         self.p0.setMenuEnabled(False)
         self.p0.setMouseEnabled(x=True, y=True)
-        self.img = pg.ImageItem(viewbox=self.p0, parent=self)
-        self.img.autoDownsample = False
+        # self.img = pg.ImageItem(viewbox=self.p0, parent=self)
+        # self.img.autoDownsample = False
         self.layer = guiparts.ImageDraw(viewbox=self.p0, parent=self)
         self.layer.setLevels([0, 255])
         self.scale = pg.ImageItem(viewbox=self.p0, parent=self)
@@ -1395,7 +1437,14 @@ class MainW(QMainWindow):
         self.p0.scene().contextMenuItem = self.p0
         #self.p0.setMouseEnabled(x=False,y=False)
         self.Ly, self.Lx = 512, 512
-        self.p0.addItem(self.img)
+        # self.p0.addItem(self.img)
+        self.p0.addItem(self.layer)
+        self.p0.addItem(self.scale)
+
+    def clear_viewbox_imgs(self):
+        print(self.p0.addedItems)
+        self.p0.clear()
+        print(self.p0.addedItems)
         self.p0.addItem(self.layer)
         self.p0.addItem(self.scale)
 
@@ -1405,7 +1454,9 @@ class MainW(QMainWindow):
         self.nchan = 3
         self.loaded = False
         self.channel = [0, 1]
-        self.metainf = {}
+        self.metainf = {1: self.color_names[3], 
+                        2: self.color_names[4], 
+                        3: self.color_names[5]}
         self.current_point_set = []
         self.in_stroke = False
         self.strokes = []
@@ -1415,17 +1466,11 @@ class MainW(QMainWindow):
         self.zdraw = []
         self.removed_cell = []
         self.cellcolors = np.array([255, 255, 255])[np.newaxis, :]
-
+        
         # -- zero out image stack -- #
         self.opacity = 128  # how opaque masks should be
         self.outcolor = [200, 200, 255, 200]
         self.NZ, self.Ly, self.Lx = 1, 224, 224
-        self.saturation = []
-        for r in range(3):
-            self.saturation.append([[0, 255] for n in range(self.NZ)])
-            self.sliders[r].setValue([0, 255])
-            self.sliders[r].setEnabled(False)
-            self.sliders[r].show()
         self.currentZ = 0
         self.flows = [[], [], [], [], [[]]]
         # masks matrix
@@ -1452,11 +1497,12 @@ class MainW(QMainWindow):
         self.ViewDropDown.model().item(self.ViewDropDown.count() - 1).setEnabled(False)
         self.delete_restore()
         self.update_channel_cols()
+        self.saturation = {}
+        self._init_sliders()
 
         self.BrushChoose.setCurrentIndex(1)
         self.clear_all()
 
-        # self.update_plot()
         self.filename = []
         self.loaded = False
         self.recompute_masks = False
@@ -1465,6 +1511,10 @@ class MainW(QMainWindow):
         self.removing_cells_list = []
         self.removing_region = False
         self.remove_roi_obj = None
+        
+        # get the 
+        self.display_img = {}
+        self.update_plot()
 
 
     def delete_restore(self):
@@ -1515,6 +1565,7 @@ class MainW(QMainWindow):
         self.toggle_removals()
         self.update_scale()
         self.update_layer()
+        self.clear_viewbox_imgs()
 
     def select_cell(self, idx):
         self.prev_selected = self.selected
@@ -1817,6 +1868,22 @@ class MainW(QMainWindow):
         self.view = 0
         self.ViewDropDown.setCurrentIndex(self.view)
         self.update_plot()
+        
+    def _plot_different_markers(self, color, image):
+        col = self.color_dict[self.color_names[color - 3]]
+        image = io.colorize(image[..., color-3].astype(np.float64), col)
+        return image
+         
+    def qimage_to_numpy(self, image):
+        print(type(image))
+        input_img = image.Format_RGB888
+        width = input_img.width()
+        height = input_img.height()
+        # Get pointer to data
+        ptr = input_img.bits()
+        ptr.setsize(input_img.byteCount())
+        # Create numpy array from data
+        return np.array(ptr).reshape(height, width, 3)
 
     def update_plot(self):
         self.view = self.ViewDropDown.currentIndex()
@@ -1836,50 +1903,71 @@ class MainW(QMainWindow):
             self.update_scale()
             self.update_layer()
 
-        print("Update plot", self.color)
         if self.view == 0 or self.view == self.ViewDropDown.count() - 1:
             image = self.stack[
                 self.currentZ] if self.view == 0 else self.stack_filtered[self.currentZ]
+            print("Update plot image shape", image.shape)   
+            print("Update plot nchan", self.nchan)   
+            print("Update plot self.color", self.color)
+            
+            self.clear_viewbox_imgs()
+            
             if self.nchan == 1:
                 # show single channel
                 image = image[..., 0]
-            print("Update plot", self.color)
-            # show RGB image
-            if self.color[0] == 0:
-                print("OPTION 1")
-                self.img.setImage(image, autoLevels=False, lut=None)
-                if self.nchan > 1:
-                    levels = np.array([
-                        self.saturation[0][self.currentZ],
-                        self.saturation[1][self.currentZ],
-                        self.saturation[2][self.currentZ]
-                    ])
-                    self.img.setLevels(levels)
-                else:
-                    self.img.setLevels(self.saturation[0][self.currentZ])
-            # show individual channel image
-            elif self.color[0] > 0 and self.color[0] < 4:
-                print("OPTION 2")
-                if self.nchan > 1:
-                    image = image[:, :, self.color[0] - 1]
-                self.img.setImage(image, autoLevels=False, lut=self.cmap[self.color[0]])
-                if self.nchan > 1:
-                    self.img.setLevels(self.saturation[self.color[0] - 1][self.currentZ])
-                else:
-                    self.img.setLevels(self.saturation[0][self.currentZ])
-            # show spectral / gray
-            elif self.color[0] == 4:
-                print("OPTION 3")
-                if self.nchan > 1:
+            if self.color[0] == 1:
+                print("gray")
+                if "gray" in self.display_img:
+                    image = self.display_img["gray"]
+                elif self.nchan > 1:
+                    print("calculating mean of image channelwise")
                     image = image.mean(axis=-1)
-                self.img.setImage(image, autoLevels=False, lut=None)
-                self.img.setLevels(self.saturation[0][self.currentZ])
-            elif self.color[0] == 5:
-                print("OPTION 4")
-                if self.nchan > 1:
+                    self.display_img["gray"] = image
+                img = pg.ImageItem(image)
+                img.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_Plus)
+                img.setImage(image, autoLevels=False, lut=None)
+                img.setLevels(self.saturation["gray"][self.currentZ])
+                self.p0.addItem(img)
+                
+                
+            elif self.color[0] == 2:
+                print("spectral")
+                if "spectral" in self.display_img:
+                    image = self.display_img["spectral"]
+                elif self.nchan > 1:
+                    print("calculating mean of image channelwise")
                     image = image.mean(axis=-1)
-                self.img.setImage(image, autoLevels=False, lut=self.cmap[0])
-                self.img.setLevels(self.saturation[0][self.currentZ])
+                    self.display_img["spectral"] = image
+                img = pg.ImageItem(image)
+                img.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_Plus)
+                img.setImage(image, autoLevels=False, lut=self.cmap[0])
+                img.setLevels(self.saturation["spectral"][self.currentZ])
+                self.p0.addItem(img)
+                
+            # show individual channel image or RGB
+            else:
+                print("RGB or ind channels")
+                # image = np.zeros(image[...,:3].shape)
+                
+                if self.color[0] == 0:
+                    self.color = range(3, len(list(self.metainf.keys()))+3)
+                
+                for ind in self.color:
+                    colname = self.metainf[ind-2]
+                    if colname in self.display_img:
+                        chan_img = self.display_img[colname]
+                    else:
+                        chan_img = self._plot_different_markers(ind, image)*np.max(image)
+                        print(np.unique(chan_img))
+                        self.display_img[colname] = chan_img
+                    print(np.min(chan_img), np.max(chan_img))
+                    print(self.saturation[self.metainf[ind-2]][self.currentZ])
+                    img = pg.ImageItem(image)
+                    img.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_Plus)
+                    img.setImage(chan_img, autoLevels=False)
+                    img.setLevels(self.saturation[self.metainf[ind-2]][self.currentZ])
+                    self.p0.addItem(img)
+                    
         else:
             image = np.zeros((self.Ly, self.Lx), np.uint8)
             if len(self.flows) >= self.view - 1 and len(self.flows[self.view - 1]) > 0:
@@ -1890,14 +1978,10 @@ class MainW(QMainWindow):
                 self.img.setImage(image, autoLevels=False, lut=None)
             self.img.setLevels([0.0, 255.0])
 
-        for r in range(3):
-            self.sliders[r].setValue([
-                self.saturation[r][self.currentZ][0],
-                self.saturation[r][self.currentZ][1]
-            ])
         self.win.show()
         self.show()
 
+    
     def update_layer(self):
         if self.masksOn or self.outlinesOn:
             #self.draw_layer()
@@ -2199,7 +2283,7 @@ class MainW(QMainWindow):
 
     def compute_saturation(self, return_img=False):
         norm = self.get_normalize_params()
-        print(norm)
+        print("Compute Sat norm", norm)
         sharpen, smooth = norm["sharpen_radius"], norm["smooth_radius"]
         percentile = norm["percentile"]
         tile_norm = norm["tile_norm_blocksize"]
@@ -2252,42 +2336,48 @@ class MainW(QMainWindow):
         else:
             img_norm = self.stack if self.restore is None or self.restore == "filter" else self.stack_filtered
 
-        self.saturation = []
-        for c in range(img_norm.shape[-1]):
-            self.saturation.append([])
-            if np.ptp(img_norm[..., c]) > 1e-3:
+        self.saturation = {name : [[0, 255.]] * self.NZ for name in ["All", "gray", "spectral"]}
+        print("COMPUTE SAT:", self.metainf)
+        for index, c in self.metainf.items():
+            index -= 1
+            if np.ptp(img_norm[..., index]) > 1e-3:
+                index -= 1
                 if norm3D:
-                    x01 = np.percentile(img_norm[..., c], percentile[0])
-                    x99 = np.percentile(img_norm[..., c], percentile[1])
+                    index -= 1
+                    x01 = np.percentile(img_norm[..., index], percentile[0])
+                    x99 = np.percentile(img_norm[..., index], percentile[1])
                     if invert:
                         x01i = 255. - x99
                         x99i = 255. - x01
                         x01, x99 = x01i, x99i
-                    for n in range(self.NZ):
-                        self.saturation[-1].append([x01, x99])
+                    self.saturation[c] = [[x01, x99]] * self.NZ
                 else:
                     for z in range(self.NZ):
+                        self.saturation[c] = []
+                        index -= 1
                         if self.NZ > 1:
-                            x01 = np.percentile(img_norm[z, :, :, c], percentile[0])
-                            x99 = np.percentile(img_norm[z, :, :, c], percentile[1])
+                            index -= 1
+                            x01 = np.percentile(img_norm[z, :, :, index], percentile[0])
+                            x99 = np.percentile(img_norm[z, :, :, index], percentile[1])
+                            index -= 1
                         else:
-                            x01 = np.percentile(img_norm[..., c], percentile[0])
-                            x99 = np.percentile(img_norm[..., c], percentile[1])
+                            index -= 1
+                            x01 = np.percentile(img_norm[..., index], percentile[0])
+                            x99 = np.percentile(img_norm[..., index], percentile[1])
                         if invert:
                             x01i = 255. - x99
                             x99i = 255. - x01
                             x01, x99 = x01i, x99i
-                        self.saturation[-1].append([x01, x99])
+                        self.saturation[c].append([x01, x99])
             else:
-                for n in range(self.NZ):
-                    self.saturation[-1].append([0, 255.])
+                self.saturation[c] = [[0, 255.]] * self.NZ
         # if only 2 restore channels, add blue
-        if len(self.saturation) < 3:
-            for i in range(3 - len(self.saturation)):
-                self.saturation.append([])
-                for n in range(self.NZ):
-                    self.saturation[-1].append([0, 255.])
-        print(self.saturation[2][self.currentZ])
+        # if len(self.saturation.keys()) < 6:
+        #     for i in range(3 - len(self.saturation)):
+        #         self.saturation.append([])
+        #         for n in range(self.NZ):
+        #             self.saturation[-1].append([0, 255.])
+        print("AFTER COMPUTING:", self.saturation)
 
         if invert:
             img_norm = 255. - img_norm
@@ -2296,11 +2386,12 @@ class MainW(QMainWindow):
                                            1).setEnabled(True)
             self.ViewDropDown.setCurrentIndex(self.ViewDropDown.count() - 1)
 
-        if img_norm.shape[-1] == 1:
-            self.saturation.append(self.saturation[0])
-            self.saturation.append(self.saturation[0])
+        # if img_norm.shape[-1] == 1:
+        #     self.saturation.append(self.saturation[0])
+        #     self.saturation.append(self.saturation[0])
 
         self.autobtn.setChecked(True)
+        print("UPDATE PLOT FROM COMPUTE SAT")
         self.update_plot()
 
     def chanchoose(self, image):
@@ -2568,8 +2659,8 @@ class MainW(QMainWindow):
             img_norm_min = img_norm.min()
             img_norm_max = img_norm.max()
             chan = [0] if channels[0] == 0 else [channels[0] - 1, channels[1] - 1]
-            self.saturation = [[], [], []]
-            for c in range(img_norm.shape[-1]):
+            self.saturation = {}
+            for c in self.RGBDropDown.Data():
                 if np.ptp(img_norm[..., c]) > 1e-3:
                     img_norm[..., c] -= img_norm_min
                     img_norm[..., c] /= (img_norm_max - img_norm_min)

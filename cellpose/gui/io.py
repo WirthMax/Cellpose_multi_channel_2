@@ -27,6 +27,26 @@ try:
 except:
     MATPLOTLIB = False
 
+from numba import njit
+
+        
+
+
+
+# @njit(parallel=True, fastmath=True)   
+def colorize(im, color, clip_percentile=0.1):
+    """
+    Helper function to create an RGB image from a single-channel image using a 
+    specific color.
+    """
+    # Check that we do just have a 2D image
+    if im.ndim > 2 and im.shape[2] != 1:
+        raise ValueError('This function expects a single-channel image!')
+    # Need to make sure we have a channels dimension for the multiplication to work
+    im_scaled = np.atleast_3d(im)
+    im_scaled = im_scaled*color
+    return (im_scaled - np.min(im_scaled))/np.ptp(im_scaled)
+
 
 def _init_model_list(parent):
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
@@ -133,14 +153,15 @@ def _load_image(parent, filename=None, load_seg=True, load_3D=False):
         
         parent.filename = filename
         filename = os.path.split(parent.filename)[-1]
-        _initialize_images(parent, image, load_3D=load_3D)
+        _initialize_images(parent, image, metainf, load_3D=load_3D)
+        parent._init_sliders()
         parent.loaded = True
         parent.enable_buttons()
         if load_mask:
             _load_masks(parent, filename=mask_file)
 
 
-def _initialize_images(parent, image, load_3D=False):
+def _initialize_images(parent, image, metainf, load_3D=False):
     """ format image for GUI """
     load_3D = parent.load_3D if load_3D is False else load_3D
     parent.nchan = 3
@@ -178,17 +199,9 @@ def _initialize_images(parent, image, load_3D=False):
             raise ValueError(
                 "cannot load 2D stack in 3D mode, run 'python -m cellpose' for 2D GUI")
 
-    if image.shape[-1] > 3:
-        print("WARNING: image has more than 3 channels, keeping only first 3")
-        image = image[..., :3]
-    elif image.shape[-1] == 2:
-        # fill in with blank channels to make 3 channels
-        shape = image.shape
-        image = np.concatenate(
-            (image, np.zeros((*shape[:-1], 3 - shape[-1]), dtype=np.uint8)), axis=-1)
-        parent.nchan = 2
-    elif image.shape[-1] == 1:
-        parent.nchan = 1
+    parent.nchan = image.shape[-1]
+    
+    parent.metainf = metainf
 
     parent.stack = image
     if load_3D:
@@ -235,13 +248,15 @@ def _initialize_images(parent, image, load_3D=False):
                 "GUI_INFO: normalization checked: computing saturation levels (and optionally filtered image)"
             )
             parent.compute_saturation()
-    elif len(parent.saturation) != parent.NZ:
-        parent.saturation = []
-        for r in range(3):
-            parent.saturation.append([])
-            for n in range(parent.NZ):
-                parent.saturation[-1].append([0, 255])
-            parent.sliders[r].setValue([0, 255])
+            print("AFTER COMP GRAD UPDATE PLOT")
+    # elif len(parent.saturation) != parent.NZ:
+    #     parent.saturation = []
+    #     for r in range(3):
+    #         parent.saturation.append([])
+    #         for n in range(parent.NZ):
+    #             parent.saturation[-1].append([0, 255])
+    #         parent.sliders[r].setValue([0, 255])
+    parent.update_channel_cols()
     parent.compute_scale()
     parent.track_changes = []
 
