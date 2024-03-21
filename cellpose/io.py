@@ -162,7 +162,7 @@ def imread(filename):
             
             try:
                 metainf = ast.literal_eval(tif.pages[0].description)
-                metainf = {int(key):val for key, val in metainf.items()}
+                metainf = {int(key):val for key, val in enumerate(metainf.values())}
             except:
                 metainf = None
                 
@@ -184,13 +184,10 @@ def imread(filename):
             for i, page in enumerate(tqdm(tif.series[0])):
                 # normalize to range of 0 - 1
                 page = page.asarray().astype(np.float32)
-                print("test 1", np.unique(page))
                 page = (page - np.min(page))/np.ptp(page)
-                # img[i] = ((page-np.min(page))/(np.max(page)-np.min(page)))
-                print("test 2", np.unique(page))
                 img[i] = page
-            print("test 3", np.unique(img))
             img = img.reshape(full_shape)
+            print("IMREAD METAINF", metainf)
         return img, metainf
     elif ext == ".dax":
         img = load_dax(filename)

@@ -35,6 +35,8 @@ try:
 except:
     MATPLOTLIB = False
 
+from matplotlib import cm
+
 try:
     from google.cloud import storage
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.path.join(
@@ -152,6 +154,13 @@ class CheckableComboBox(QComboBox):
         for i in range(self.model().rowCount()):
             if self.model().item(i).checkState() == Qt.CheckState.Checked:
                 res.append(self.model().item(i).data())
+        return res
+    
+    def current(self):
+        res = list()
+        for i in range(self.model().rowCount()):
+            if self.model().item(i).checkState() == Qt.CheckState.Checked:
+                res.append(self.model().item(i))
         return res
 
     def currentOptions(self):
@@ -520,6 +529,24 @@ class MainW(QMainWindow):
         EG = guiparts.ExampleGUI(self)
         EG.show()
 
+
+    def delete_sliders(self, b0 = 4):
+        # remove all old sliders
+        index = self.satBoxG.count()
+        while(index >= b0):
+            item = self.satBoxG.itemAt(index)
+            if item != None :
+                widget = item.widget()
+                if type(widget) == Slider:
+                    self.satBoxG.removeWidget(widget)
+                    widget.setEnabled(False)
+                    widget.setHidden(True)
+                elif type(widget) == QLabel:
+                    self.satBoxG.removeWidget(widget)
+                    widget.setHidden(True)
+                    # widget.deleteLater()
+            index -=1
+
     def _init_sliders(self, b0 = 4):
         # get all channel names from the image
         names = self.RGBDropDown.Data()
@@ -537,7 +564,7 @@ class MainW(QMainWindow):
                 color = tuple([19, 132, 245])
             # the remaining options are coloured based on the colordict
             else:
-                color = self.color_dict[self.color_names[i-3]]
+                color = self.color_dict[self.color_names[i]]
             
             # set the saturation
             self.saturation[name] = [[0, 255]]* self.NZ
@@ -546,6 +573,7 @@ class MainW(QMainWindow):
             label = QLabel(name + ":")
             label.setStyleSheet(f"color: rgb{color};")
             label.setFont(self.boldmedfont)
+            label.setHidden(True)
             # generate slider
             self.sliders[name] = Slider(self, name, color, label)
             self.sliders[name].setToolTip(
@@ -1454,9 +1482,9 @@ class MainW(QMainWindow):
         self.nchan = 3
         self.loaded = False
         self.channel = [0, 1]
-        self.metainf = {1: self.color_names[3], 
-                        2: self.color_names[4], 
-                        3: self.color_names[5]}
+        self.metainf = {0: self.color_names[3], 
+                        1: self.color_names[4], 
+                        2: self.color_names[5]}
         self.current_point_set = []
         self.in_stroke = False
         self.strokes = []
@@ -1863,6 +1891,17 @@ class MainW(QMainWindow):
 
     def color_choose(self):
         self.color = self.RGBDropDown.currentIndex()
+        colnames = self.RGBDropDown.currentData()
+        print(colnames)
+        self.delete_sliders()
+        for i, color in enumerate(colnames):
+            slider = self.sliders[color]
+            slider.setHidden(False)
+            slider.setEnabled(True)
+            label = slider.label
+            label.setHidden(False)
+            self.satBoxG.addWidget(label, 4+i, 0, 1, 2)
+            self.satBoxG.addWidget(slider, 4+i, 2, 1, 7)
         if len(self.color) == 0:
             self.color = [0]
         self.view = 0
@@ -1870,7 +1909,7 @@ class MainW(QMainWindow):
         self.update_plot()
         
     def _plot_different_markers(self, color, image):
-        col = self.color_dict[self.color_names[color - 3]]
+        col = self.color_dict[self.color_names[color]]
         image = io.colorize(image[..., color-3].astype(np.float64), col)
         return image
          
@@ -1953,19 +1992,23 @@ class MainW(QMainWindow):
                     self.color = range(3, len(list(self.metainf.keys()))+3)
                 
                 for ind in self.color:
-                    colname = self.metainf[ind-2]
+                    print(ind)
+                    print(ind-3)
+                    print(self.metainf)
+                    colname = self.metainf[ind-3]
+                    print(colname)
                     if colname in self.display_img:
                         chan_img = self.display_img[colname]
                     else:
                         chan_img = self._plot_different_markers(ind, image)*np.max(image)
-                        print(np.unique(chan_img))
                         self.display_img[colname] = chan_img
-                    print(np.min(chan_img), np.max(chan_img))
-                    print(self.saturation[self.metainf[ind-2]][self.currentZ])
                     img = pg.ImageItem(image)
                     img.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_Plus)
                     img.setImage(chan_img, autoLevels=False)
-                    img.setLevels(self.saturation[self.metainf[ind-2]][self.currentZ])
+                    print(ind-3)
+                    print(self.metainf)
+                    print("UPDATE", self.metainf[ind-3])
+                    img.setLevels(self.saturation[self.metainf[ind-3]][self.currentZ])
                     self.p0.addItem(img)
                     
         else:
