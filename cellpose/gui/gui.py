@@ -491,7 +491,6 @@ class MainW(QMainWindow):
             self.color_dict["spectral"] = [19, 132, 245]
             self.color_names = ["All", "gray", "spectral"] + self.color_names
 
-        print("UPDATE CHANNEL COLS metainf:", self.metainf)
 
         if type(self.metainf) == dict and not len(list(self.metainf.keys())) == 0:
             names = list(self.metainf.values())
@@ -515,7 +514,6 @@ class MainW(QMainWindow):
         self.ChannelChoose[1].clear()
         self.ChannelChoose[1].addItems(options3)
         
-        print("UPDATE CHANNEL COLS Checkbox names:", self.RGBDropDown.Data())
 
         
 
@@ -583,7 +581,6 @@ class MainW(QMainWindow):
             )
             self.sliders[name].setHidden(True)
             self.sliders[name].setEnabled(False)
-        print("SATURATION AFTER INIT SLIDERS:", self.saturation)
 
         
 
@@ -1472,11 +1469,9 @@ class MainW(QMainWindow):
         self.p0.addItem(self.scale)
 
     def clear_viewbox_imgs(self):
-        print(self.p0.addedItems)
         layer = self.layer in self.p0.addedItems
         scale = self.scale in self.p0.addedItems
         self.p0.clear()
-        print(self.p0.addedItems)
         
         if layer:
             self.p0.addItem(self.layer)
@@ -1899,7 +1894,6 @@ class MainW(QMainWindow):
     def color_choose(self):
         self.color = self.RGBDropDown.currentIndex()
         colnames = self.RGBDropDown.currentData()
-        print(colnames)
         self.delete_sliders()
         for i, color in enumerate(colnames):
             slider = self.sliders[color]
@@ -1920,17 +1914,7 @@ class MainW(QMainWindow):
         col = self.color_dict[self.color_names[color]]
         image = io.colorize(image[..., color-3].astype(np.float64), col)
         return image
-         
-    def qimage_to_numpy(self, image):
-        print(type(image))
-        input_img = image.Format_RGB888
-        width = input_img.width()
-        height = input_img.height()
-        # Get pointer to data
-        ptr = input_img.bits()
-        ptr.setsize(input_img.byteCount())
-        # Create numpy array from data
-        return np.array(ptr).reshape(height, width, 3)
+    
 
     def update_plot(self):
         self.view = self.ViewDropDown.currentIndex()
@@ -1953,9 +1937,6 @@ class MainW(QMainWindow):
         if self.view == 0 or self.view == self.ViewDropDown.count() - 1:
             image = self.stack[
                 self.currentZ] if self.view == 0 else self.stack_filtered[self.currentZ]
-            print("Update plot image shape", image.shape)   
-            print("Update plot nchan", self.nchan)   
-            print("Update plot self.color", self.color)
             
             self.clear_viewbox_imgs()
             
@@ -1996,15 +1977,13 @@ class MainW(QMainWindow):
                 print("RGB or ind channels")
                 # image = np.zeros(image[...,:3].shape)
                 
+                All_levels = False
                 if self.color[0] == 0:
                     self.color = range(3, len(list(self.metainf.keys()))+3)
-                
+                    All_levels = True
+
                 for ind in self.color:
-                    print(ind)
-                    print(ind-3)
-                    print(self.metainf)
                     colname = self.metainf[ind-3]
-                    print(colname)
                     if colname in self.display_img:
                         chan_img = self.display_img[colname]
                     else:
@@ -2013,10 +1992,10 @@ class MainW(QMainWindow):
                     img = pg.ImageItem(image)
                     img.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_Plus)
                     img.setImage(chan_img, autoLevels=False)
-                    print(ind-3)
-                    print(self.metainf)
-                    print("UPDATE", self.metainf[ind-3])
-                    img.setLevels(self.saturation[self.metainf[ind-3]][self.currentZ])
+                    if All_levels:
+                        img.setLevels(self.saturation["All"][self.currentZ])
+                    else:
+                        img.setLevels(self.saturation[self.metainf[ind-3]][self.currentZ])
                     self.p0.addItem(img)
                     
         else:
@@ -2388,7 +2367,6 @@ class MainW(QMainWindow):
             img_norm = self.stack if self.restore is None or self.restore == "filter" else self.stack_filtered
 
         self.saturation = {name : [[0, 255.]] * self.NZ for name in ["All", "gray", "spectral"]}
-        print("COMPUTE SAT:", self.metainf)
         for index, c in self.metainf.items():
             index -= 1
             if np.ptp(img_norm[..., index]) > 1e-3:
@@ -2428,7 +2406,6 @@ class MainW(QMainWindow):
         #         self.saturation.append([])
         #         for n in range(self.NZ):
         #             self.saturation[-1].append([0, 255.])
-        print("AFTER COMPUTING:", self.saturation)
 
         if invert:
             img_norm = 255. - img_norm

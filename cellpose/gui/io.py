@@ -248,7 +248,6 @@ def _initialize_images(parent, image, metainf, load_3D=False):
                 "GUI_INFO: normalization checked: computing saturation levels (and optionally filtered image)"
             )
             parent.compute_saturation()
-            print("AFTER COMP GRAD UPDATE PLOT")
     # elif len(parent.saturation) != parent.NZ:
     #     parent.saturation = []
     #     for r in range(3):

@@ -187,7 +187,6 @@ def imread(filename):
                 page = (page - np.min(page))/np.ptp(page)
                 img[i] = page
             img = img.reshape(full_shape)
-            print("IMREAD METAINF", metainf)
         return img, metainf
     elif ext == ".dax":
         img = load_dax(filename)
