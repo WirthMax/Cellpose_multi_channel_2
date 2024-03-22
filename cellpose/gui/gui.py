@@ -4,6 +4,7 @@ Copyright © 2023 Howard Hughes Medical Institute, Authored by Carsen Stringer a
 
 from http.client import TOO_MANY_REQUESTS
 from ipaddress import collapse_addresses
+from optparse import Values
 import sys, os, pathlib, warnings, datetime, time, copy
 
 from qtpy import QtGui, QtCore
@@ -214,7 +215,8 @@ class Slider(QRangeSlider):
         self.show()
 
     def levelChanged(self, parent):
-        parent.level_change(self.name)
+        if self.isEnabled:
+            parent.level_change(self.name)
 
 
 class QHLine(QFrame):
@@ -547,7 +549,7 @@ class MainW(QMainWindow):
                     # widget.deleteLater()
             index -=1
 
-    def _init_sliders(self, b0 = 4):
+    def _init_sliders(self):
         # get all channel names from the image
         names = self.RGBDropDown.Data()
         # initiate self.sliders
@@ -659,7 +661,7 @@ class MainW(QMainWindow):
         self.satBoxG.addWidget(self.autobtn, b0, 1, 1, 8)
 
         self.NZ = 1
-        self._init_sliders(b0+1)
+        self._init_sliders()
         # b0 += 1
         # self.sliders = []
         # colors = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [100, 100, 100]]
@@ -1471,10 +1473,15 @@ class MainW(QMainWindow):
 
     def clear_viewbox_imgs(self):
         print(self.p0.addedItems)
+        layer = self.layer in self.p0.addedItems
+        scale = self.scale in self.p0.addedItems
         self.p0.clear()
         print(self.p0.addedItems)
-        self.p0.addItem(self.layer)
-        self.p0.addItem(self.scale)
+        
+        if layer:
+            self.p0.addItem(self.layer)
+        if scale:
+            self.p0.addItem(self.scale)
 
     def reset(self):
         # ---- start sets of points ---- #
@@ -1900,6 +1907,7 @@ class MainW(QMainWindow):
             slider.setEnabled(True)
             label = slider.label
             label.setHidden(False)
+            slider.setValue(self.saturation[color][self.currentZ])
             self.satBoxG.addWidget(label, 4+i, 0, 1, 2)
             self.satBoxG.addWidget(slider, 4+i, 2, 1, 7)
         if len(self.color) == 0:
@@ -2435,6 +2443,7 @@ class MainW(QMainWindow):
 
         self.autobtn.setChecked(True)
         print("UPDATE PLOT FROM COMPUTE SAT")
+        
         self.update_plot()
 
     def chanchoose(self, image):

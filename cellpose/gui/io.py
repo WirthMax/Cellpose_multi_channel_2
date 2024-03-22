@@ -131,7 +131,8 @@ def _load_image(parent, filename=None, load_seg=True, load_3D=False):
     load_mask = False
     if load_seg:
         if os.path.isfile(manual_file) and not parent.autoloadMasks.isChecked():
-            _load_seg(parent, manual_file, image=imread(filename)[0], image_file=filename,
+            img, metainf = image=imread(filename)
+            _load_seg(parent, manual_file, image = img, metainf = metainf, image_file=filename,
                       load_3D=load_3D)
             return
         elif parent.autoloadMasks.isChecked():
@@ -154,7 +155,6 @@ def _load_image(parent, filename=None, load_seg=True, load_3D=False):
         parent.filename = filename
         filename = os.path.split(parent.filename)[-1]
         _initialize_images(parent, image, metainf, load_3D=load_3D)
-        parent._init_sliders()
         parent.loaded = True
         parent.enable_buttons()
         if load_mask:
@@ -259,6 +259,7 @@ def _initialize_images(parent, image, metainf, load_3D=False):
     parent.update_channel_cols()
     parent.compute_scale()
     parent.track_changes = []
+    parent._init_sliders()
 
     if load_3D:
         parent.currentZ = int(np.floor(parent.NZ / 2))
@@ -266,10 +267,13 @@ def _initialize_images(parent, image, metainf, load_3D=False):
         parent.zpos.setText(str(parent.currentZ))
     else:
         parent.currentZ = 0
+    
 
 
-def _load_seg(parent, filename=None, image=None, image_file=None, load_3D=False):
+def _load_seg(parent, filename=None, image=None, metainf=None, image_file=None, load_3D=False):
     """ load *_seg.npy with filename; if None, open QFileDialog """
+    print("Load seg metainf", metainf)
+    print(parent.sliders)
     if filename is None:
         name = QFileDialog.getOpenFileName(parent, "Load labelled data", filter="*.npy")
         filename = name[0]
@@ -284,6 +288,7 @@ def _load_seg(parent, filename=None, image=None, image_file=None, load_3D=False)
         return
 
     parent.reset()
+    print("RESETTED")
     if image is None:
         found_image = False
         if "filename" in dat:
@@ -299,7 +304,7 @@ def _load_seg(parent, filename=None, image=None, image_file=None, load_3D=False)
                     found_image = True
         if found_image:
             try:
-                print(parent.filename)
+                print("Found image", parent.filename)
                 image, metainf = imread(parent.filename)
             except:
                 parent.loaded = False
@@ -348,8 +353,6 @@ def _load_seg(parent, filename=None, image=None, image_file=None, load_3D=False)
             else:
                 parent.stack_filtered = np.concatenate(
                     (parent.stack_filtered, np.zeros((*shape[:-1], 1), dtype="float32")), axis=-1)
-        elif shape[-1] > 3:
-            parent.stack_filtered = parent.stack_filtered[..., :3]
         
         parent.restore = dat["restore"]
         parent.ViewDropDown.model().item(parent.ViewDropDown.count() -
@@ -359,10 +362,14 @@ def _load_seg(parent, filename=None, image=None, image_file=None, load_3D=False)
             print(parent.stack_filtered.shape, image.shape)
             parent.ratio = dat["ratio"]
         
+    print("END", parent.sliders)
+    
     parent.set_restore_button()
 
-    _initialize_images(parent, image, parent.metainf, load_3D=load_3D)
+    _initialize_images(parent, image, metainf, load_3D=load_3D)
     print(parent.stack.shape)
+    print("AFTER INIT Sat:", parent.saturation)
+    print("AFTER INIT sliders:", parent.sliders)
     if "chan_choose" in dat:
         parent.ChannelChoose[0].setCurrentIndex(dat["chan_choose"][0])
         parent.ChannelChoose[1].setCurrentIndex(dat["chan_choose"][1])
