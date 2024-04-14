@@ -191,13 +191,13 @@ def real_examples(folder):
 
         if dset == "Projection_Flywing":
             clean = [
-                transforms.normalize99(io.imread(tif))
+                transforms.normalize99(io.imread(tif)[0])
                 for tif in natsorted(root.glob("proj_C2*.tif"))
             ]
             diam = 20.
             cellprob_threshold = -2.
         else:
-            imgs = [io.imread(tif) for tif in natsorted(root.glob("*.tif"))]
+            imgs = [io.imread(tif)[0] for tif in natsorted(root.glob("*.tif"))]
             dz = 8
             clean = [
                 transforms.normalize99(img[-1][img.shape[1] // 2 -
@@ -230,14 +230,14 @@ def real_examples(folder):
                 nstr = f"proj_C{nl+(nl>1)}"
                 print(nstr)
                 noisy = [
-                    transforms.normalize99(io.imread(tif))
+                    transforms.normalize99(io.imread(tif)[0])
                     for tif in natsorted(root.glob(f"{nstr}*.tif"))
                 ]
             elif dset == "Denoising_Tribolium":
                 noisy = [transforms.normalize99(img[nl][img.shape[1] // 2 - dz:img.shape[1] // 2 + dz].max(axis=0)) for img in imgs]  #.max(axis=0)
             else:
                 noisy = [
-                    io.imread(tif)
+                    io.imread(tif)[0]
                     for tif in natsorted((root / f"condition_{nl+1}").glob("*.tif"))
                 ]
                 noisy = [
@@ -430,8 +430,8 @@ def cyto3_comparisons(folder):
             else:
                 diams = 0
 
-            imgs = [io.imread(tif) for tif in tifs]
-            flows = [io.imread(str(tif)[:-4] + "_flows.tif") for tif in tifs]
+            imgs = [io.imread(tif)[0] for tif in tifs]
+            flows = [io.imread(str(tif)[:-4] + "_flows.tif")[0] for tif in tifs]
             masks = [flow[0].astype("uint16") for flow in flows]
 
             if f == "cyto2":

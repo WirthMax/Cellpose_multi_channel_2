@@ -88,11 +88,11 @@ def load_train_test_all(train_files, train_types, test_files, test_types):
     """ reshape train and test data with cyto chan 0 and nuclei chan 1 """
     from cellpose.io import imread
     train_data = [
-        reshape_and_normalize(imread(train_files[i]), train_types[i])
+        reshape_and_normalize(imread(train_files[i])[0], train_types[i])
         for i in trange(len(train_files))
     ]
     test_data = [
-        reshape_and_normalize(imread(test_files[i]), test_types[i])
+        reshape_and_normalize(imread(test_files[i])[0], test_types[i])
         for i in trange(len(test_files))
     ]
     return train_data, test_data

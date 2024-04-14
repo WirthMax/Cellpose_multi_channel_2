@@ -205,6 +205,10 @@ def imread(filename):
             if img.ndim == 3:
                 img = img.transpose(2, 0, 1)
             return img, metadata
+    elif ext == ".npz":
+        print("HERE WE GO")
+        data = np.load(filename)
+        img, metadata = data['image'].astype(np.float64), data['markers']
     elif ext != ".npy":
         try:
             img = cv2.imread(filename, -1)  #cv2.LOAD_IMAGE_ANYDEPTH)
@@ -303,7 +307,7 @@ def get_image_files(folder, mask_filter, imf=None, look_one_level_down=False):
     if look_one_level_down:
         folders = natsorted(glob.glob(os.path.join(folder, "*/")))
     folders.append(folder)
-    exts = [".png", ".jpg", ".jpeg", ".tif", ".tiff", ".dax", ".nd2", ".nrrd"]
+    exts = [".png", ".jpg", ".jpeg", ".tif", ".tiff", ".dax", ".nd2", ".nrrd", ".npz"]
     l0 = 0
     al = 0
     for folder in folders:
@@ -434,9 +438,9 @@ def load_images_labels(tdir, mask_filter="_masks", image_filter=None,
         if os.path.isfile(label_names[n]) or os.path.isfile(flow_names[0]):
             image, metainf = imread(image_names[n])
             if label_names is not None:
-                label = imread(label_names[n])
+                label, _ = imread(label_names[n])
             if flow_names is not None:
-                flow = imread(flow_names[n])
+                flow, _ = imread(flow_names[n])
                 if flow.shape[0] < 4:
                     label = np.concatenate((label[np.newaxis, :, :], flow), axis=0)
                 else:

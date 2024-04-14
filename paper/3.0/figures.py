@@ -1054,12 +1054,12 @@ def suppfig_specialist(folder, save_fig=True):
     im_train = [
         io.imread(
             Path(folder) / "images_cyto2" / "noisy_test" / "care" / "source" /
-            f"{i:03d}.tif") for i in range(n_train)
+            f"{i:03d}.tif")[0] for i in range(n_train)
     ]
     im_gt = [
         io.imread(
             Path(folder) / "images_cyto2" / "noisy_test" / "care" / "GT" /
-            f"{i:03d}.tif") for i in range(n_train)
+            f"{i:03d}.tif")[0] for i in range(n_train)
     ]
 
     thresholds = np.arange(0.5, 1.05, 0.05)

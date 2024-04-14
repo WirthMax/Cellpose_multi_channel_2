@@ -26,7 +26,7 @@ def CIL_dataset(root):
     # keep green channel, first 89 images are cellimagelibrary
     train_data = []
     for i in range(89):
-        img = io.imread(root / "train" / f"{i:03d}_img.tif")
+        img = io.imread(root / "train" / f"{i:03d}_img.tif")[0]
         if img.ndim > 2:
             img = img[0]
         train_data.append(np.maximum(transforms.normalize99(img), 0)[np.newaxis, :, :])
@@ -34,7 +34,7 @@ def CIL_dataset(root):
     # first 11 are cellimagelibrary
     test_data = []
     for i in range(11):
-        img = io.imread(root / "test" / f"{i:03d}_img.tif")
+        img = io.imread(root / "test" / f"{i:03d}_img.tif")[0]
         if img.ndim > 2:
             img = img[0]
         test_data.append(np.maximum(transforms.normalize99(img), 0)[np.newaxis, :, :])

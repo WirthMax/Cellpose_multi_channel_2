@@ -282,9 +282,14 @@ class CellposeModel():
         nbase = [32, 64, 128, 256]
         self.nbase = [nchan, *nbase]
         # sz is input channel size?
-        self.net = CPnet(self.nbase, self.nclasses, sz=3, mkldnn=self.mkldnn,
+        if pretrained_model_string == "Transformer":
+            print("SHOULD LOAD THE TRANSFORMER")
+            self.net = "THIS"
+            exit()
+        else:
+            self.net = CPnet(self.nbase, self.nclasses, sz=3, mkldnn=self.mkldnn,
                          max_pool=True, diam_mean=diam_mean).to(self.device)
-        
+
         self.pretrained_model = pretrained_model
         if self.pretrained_model:
             self.net.load_model(self.pretrained_model, device=self.device)
