@@ -113,7 +113,7 @@ def main():
                 szmean = 17.
             else:
                 szmean = 30.
-        builtin_size = model_type == "cyto" or model_type == "cyto2" or model_type == "nuclei" or model_type == "cyto3"
+        builtin_size = model_type == "cyto" or model_type == "cyto2" or model_type == "nuclei" or model_type == "cyto3" or model_type == "Transformer"
 
         if len(args.image_path) > 0 and (args.train or args.train_size):
             raise ValueError("ERROR: cannot train model with single image input")
@@ -225,7 +225,6 @@ def main():
             output = io.load_train_test_data(args.dir, test_dir, imf, args.mask_filter,
                                              args.look_one_level_down)
             images, labels, image_names, test_images, test_labels, image_names_test = output
-
             # training with all channels
             if args.all_channels:
                 img = images[0]
@@ -236,7 +235,6 @@ def main():
                 channels = None
             else:
                 nchan = 2
-
             # model path
             szmean = args.diam_mean
             if not os.path.exists(pretrained_model) and model_type is None:

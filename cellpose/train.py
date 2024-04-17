@@ -189,7 +189,6 @@ def _process_train_test(train_data=None, train_labels=None, train_files=None,
         train_logger.warning("test data and labels not same length, not using")
         test_data, test_files = None, None
     if train_labels is not None:
-        print(train_labels)
         if train_labels[0].ndim < 2 or train_data[0].ndim < 2:
             error_message = "training data or labels are not at least two-dimensional"
             train_logger.critical(error_message)
@@ -243,7 +242,6 @@ def _process_train_test(train_data=None, train_labels=None, train_files=None,
         diam_test[diam_test < 5] = 5.
     else:
         diam_test = None
-
     ### check to remove training images with too few masks
     if min_train_masks > 0:
         nremove = (nmasks < min_train_masks).sum()
@@ -262,7 +260,6 @@ def _process_train_test(train_data=None, train_labels=None, train_files=None,
             if train_probs is not None:
                 train_probs = train_probs[ikeep]
             diam_train = diam_train[ikeep]
-
     ### normalize probabilities
     train_probs = 1. / nimg * np.ones(nimg,
                                       "float64") if train_probs is None else train_probs
@@ -348,7 +345,6 @@ def train_seg(net, train_data=None, train_labels=None, train_files=None,
     else:
         normalize_params = models.normalize_default
         normalize_params["normalize"] = normalize
-
     out = _process_train_test(
         train_data=train_data, train_labels=train_labels, train_files=train_files,
         train_labels_files=train_labels_files, train_probs=train_probs,

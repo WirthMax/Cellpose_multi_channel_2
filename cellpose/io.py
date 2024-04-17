@@ -179,12 +179,12 @@ def imread(filename):
             page = tif.series[0][0]
             shape, dtype = page.shape, page.dtype
             ltif = int(np.prod(full_shape) / np.prod(shape))
-            io_logger.info(f"reading tiff with {ltif} planes")
+            
+            io_logger.info(f"reading tiff with {ltif} planes, name {filename}")
             img = np.zeros((ltif, *shape), dtype=np.float32)
             for i, page in enumerate(tqdm(tif.series[0])):
                 # normalize to range of 0 - 1
                 page = page.asarray().astype(np.float32)
-                page = (page - np.min(page))/np.ptp(page)
                 img[i] = page
             img = img.reshape(full_shape)
         return img, metainf
@@ -214,6 +214,8 @@ def imread(filename):
             img = cv2.imread(filename, -1)  #cv2.LOAD_IMAGE_ANYDEPTH)
             if img.ndim > 2:
                 img = img[..., [2, 1, 0]]
+            print(np.min(img))
+            print(np.max(img))
             return img, None
         except Exception as e:
             io_logger.critical("ERROR: could not read file, %s" % e)
@@ -440,11 +442,12 @@ def load_images_labels(tdir, mask_filter="_masks", image_filter=None,
             if label_names is not None:
                 label, _ = imread(label_names[n])
             if flow_names is not None:
-                flow, _ = imread(flow_names[n])
+                flow, metainf = imread(flow_names[n])
                 if flow.shape[0] < 4:
                     label = np.concatenate((label[np.newaxis, :, :], flow), axis=0)
                 else:
                     label = flow
+                    
             images.append(image)
             labels.append(label)
             k += 1
@@ -479,7 +482,6 @@ def load_train_test_data(train_dir, test_dir=None, image_filter=None,
     if test_dir is not None:
         test_images, test_labels, test_image_names, metainf = load_images_labels(
             test_dir, mask_filter, image_filter, look_one_level_down)
-
     return images, labels, image_names, test_images, test_labels, test_image_names
 
 def masks_flows_to_seg(images, masks, flows, file_names, diams=30., channels=None,
