@@ -201,7 +201,8 @@ def _initialize_images(parent, image, metainf, load_3D=False):
 
     parent.nchan = image.shape[-1]
     
-    parent.metainf = metainf
+    if not metainf is None:
+        parent.metainf = metainf
 
     parent.stack = image
     if load_3D:
@@ -461,7 +462,7 @@ def _load_masks(parent, filename=None):
         name = QFileDialog.getOpenFileName(parent, "Load masks (PNG or TIFF)")
         filename = name[0]
     print(f"GUI_INFO: loading masks: {filename}")
-    masks = imread(filename)
+    masks, _ = imread(filename)
     outlines = None
     if masks.ndim > 3:
         # Z x nchannels x Ly x Lx

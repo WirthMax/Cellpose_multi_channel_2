@@ -59,6 +59,8 @@ class CheckableComboBox(QComboBox):
         self.closeOnLineEditClick = False
 
         self.lineEdit().installEventFilter(self)
+        width = self.minimumSizeHint().width()
+        self.view().setMinimumWidth(width)
         self.view().viewport().installEventFilter(self)
 
         self.model().dataChanged.connect(self.updateLineEditField)
