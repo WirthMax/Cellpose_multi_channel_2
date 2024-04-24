@@ -206,7 +206,6 @@ def imread(filename):
                 img = img.transpose(2, 0, 1)
             return img, metadata
     elif ext == ".npz":
-        print("HERE WE GO")
         data = np.load(filename)
         img, metadata = data['image'].astype(np.float64), data['markers']
     elif ext != ".npy":
@@ -214,8 +213,6 @@ def imread(filename):
             img = cv2.imread(filename, -1)  #cv2.LOAD_IMAGE_ANYDEPTH)
             if img.ndim > 2:
                 img = img[..., [2, 1, 0]]
-            print(np.min(img))
-            print(np.max(img))
             return img, None
         except Exception as e:
             io_logger.critical("ERROR: could not read file, %s" % e)

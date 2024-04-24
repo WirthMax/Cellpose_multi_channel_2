@@ -182,7 +182,6 @@ class upsample(nn.Module):
             x = self.up[n](x, xd[n], style, mkldnn=mkldnn)
         return x
 
-
 class CPnet(nn.Module):
     """
     CPnet is the Cellpose neural network model used for cell segmentation and image restoration.
@@ -235,6 +234,7 @@ class CPnet(nn.Module):
                                       requires_grad=False)
         self.diam_labels = nn.Parameter(data=torch.ones(1) * diam_mean,
                                         requires_grad=False)
+        self.model_string = "CP"
 
     @property
     def device(self):

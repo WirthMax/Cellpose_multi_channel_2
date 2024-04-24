@@ -16,6 +16,7 @@ models_logger = logging.getLogger(__name__)
 
 from . import transforms, dynamics, utils, plot
 from .resnet_torch import CPnet
+from .Transformer_net import Transformer_CPnet
 from .core import assign_device, check_mkl, run_net, run_3D
 
 _MODEL_URL = "https://www.cellpose.org/models"
@@ -258,8 +259,10 @@ class CellposeModel():
                 self.diam_mean = 17.
             else:
                 self.diam_mean = 30.
-            pretrained_model = model_path(pretrained_model_string)
-
+            if pretrained_model_string == "Transformer":
+                pretrained_model = None
+            else:
+                pretrained_model = model_path(pretrained_model_string)
         else:
             builtin = False
             if pretrained_model:
@@ -285,8 +288,9 @@ class CellposeModel():
         # sz is input channel size?
         if pretrained_model_string == "Transformer":
             print("SHOULD LOAD THE TRANSFORMER")
-            self.net = "THIS"
-            exit()
+            self.net = Transformer_CPnet(self.nbase, self.nclasses, sz=3, mkldnn=self.mkldnn,
+                         max_pool=True, diam_mean=diam_mean).to(self.device)
+            print("loaded")
         else:
             self.net = CPnet(self.nbase, self.nclasses, sz=3, mkldnn=self.mkldnn,
                          max_pool=True, diam_mean=diam_mean).to(self.device)

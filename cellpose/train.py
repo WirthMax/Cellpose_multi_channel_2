@@ -420,9 +420,13 @@ def train_seg(net, train_data=None, train_labels=None, train_files=None,
             diams = np.array([diam_train[i] for i in inds])
             rsc = diams / net.diam_mean.item()
             # augmentations
-            imgi, lbl = transforms.random_rotate_and_resize(imgs, Y=lbls, rescale=rsc,
-                                                            scale_range=scale_range)[:2]
-
+            if net.model_string == "Transformer":
+                imgi, lbl = transforms.random_rotate_and_resize(imgs, Y=lbls, rescale=rsc,
+                                                                scale_range=scale_range,
+                                                                xy=(448, 448))[:2]
+            else: 
+                imgi, lbl = transforms.random_rotate_and_resize(imgs, Y=lbls, rescale=rsc,
+                                                                scale_range=scale_range)[:2]
             X = torch.from_numpy(imgi).to(device)
             y = net(X)[0]
             loss = _loss_fn_seg(lbl, y, device)
@@ -456,8 +460,13 @@ def train_seg(net, train_data=None, train_labels=None, train_files=None,
                                                 normalize_params=normalize_params)
                         diams = np.array([diam_test[i] for i in inds])
                         rsc = diams / net.diam_mean.item()
-                        imgi, lbl = transforms.random_rotate_and_resize(
-                            imgs, Y=lbls, rescale=rsc, scale_range=scale_range)[:2]
+                        if net.model_string == "Transformer":
+                            imgi, lbl = transforms.random_rotate_and_resize(
+                                imgs, Y=lbls, rescale=rsc, scale_range=scale_range,
+                                xy = (448, 448))[:2]
+                        else:
+                            imgi, lbl = transforms.random_rotate_and_resize(
+                                imgs, Y=lbls, rescale=rsc, scale_range=scale_range)[:2]
                         X = torch.from_numpy(imgi).to(device)
                         y = net(X)[0]
                         loss = _loss_fn_seg(lbl, y, device)

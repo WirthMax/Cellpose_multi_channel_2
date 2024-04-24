@@ -1973,7 +1973,7 @@ class MainW(QMainWindow):
             # show individual channel image or RGB
             else:
                 print("RGB or ind channels")
-                # image = np.zeros(image[...,:3].shape)
+                # image = np.zeros(image[...,:3].shape)0    
                 
                 All_levels = False
                 if self.color[0] == 0:
