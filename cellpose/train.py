@@ -9,6 +9,9 @@ from torch import nn
 from tqdm import trange
 from numba import prange
 
+import matplotlib.pyplot as plt
+from matplotlib import cm
+
 import logging
 
 train_logger = logging.getLogger(__name__)
@@ -219,7 +222,7 @@ def _process_train_test(train_data=None, train_labels=None, train_files=None,
             test_labels_files = [
                 os.path.splitext(str(tf))[0] + "_flows.tif" for tf in test_files
             ]
-
+    
     ### compute diameters
     nmasks = np.zeros(nimg)
     diam_train = np.zeros(nimg)
