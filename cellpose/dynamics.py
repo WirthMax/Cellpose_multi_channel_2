@@ -28,7 +28,7 @@ torch_GPU = torch.device("cuda")
 torch_CPU = torch.device("cpu")
 
 
-@njit("(float64[:], int32[:], int32[:], int32, int32, int32, int32)", nogil=True)
+# @njit("(float64[:], int32[:], int32[:], int32, int32, int32, int32)", nogil=True)
 def _extend_centers(T, y, x, ymed, xmed, Lx, niter):
     """Run diffusion from the center of the mask on the mask pixels.
 
@@ -44,7 +44,7 @@ def _extend_centers(T, y, x, ymed, xmed, Lx, niter):
     Returns:
         numpy.ndarray: Array of shape (Ly * Lx) representing the amount of diffused particles at each pixel.
     """
-    for t in range(niter):
+    for t in range(niter//10):
             T[ymed * Lx + xmed] += 1
             T[y * Lx +
                 x] = 1 / 9. * (T[y * Lx + x] + T[(y - 1) * Lx + x] + T[(y + 1) * Lx + x] +
@@ -284,8 +284,10 @@ def masks_to_flows_cpu(masks, device=None, niter=None):
     """
     Ly, Lx = masks.shape
     mu = np.zeros((2, Ly, Lx), np.float64)
+    testx = np.zeros((Ly, Lx), np.float64)
 
     slices = find_objects(masks)
+    
     meds = []
     for i in prange(len(slices)):
         si = slices[i]
@@ -304,15 +306,18 @@ def masks_to_flows_cpu(masks, device=None, niter=None):
 
             n_iter = 2 * np.int32(ly + lx) if niter is None else niter
             T = np.zeros((ly) * (lx), np.float64)
+            
             T = _extend_centers(T, y, x, ymed, xmed, np.int32(lx), np.int32(n_iter))
+            
             dy = T[(y + 1) * lx + x] - T[(y - 1) * lx + x]
             dx = T[y * lx + x + 1] - T[y * lx + x - 1]
             mu[:, sr.start + y - 1, sc.start + x - 1] = np.stack((dy, dx))
+            testx[sr.start + y - 1, sc.start + x - 1] = abs(dx) + abs(dy)
             meds.append([ymed - 1, xmed - 1])
 
     # new normalization
     mu /= (1e-60 + (mu**2).sum(axis=0)**0.5)
-
+    
     return mu, meds
 
 

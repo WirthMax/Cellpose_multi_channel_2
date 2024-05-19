@@ -140,11 +140,11 @@ def train_test_specialist(root, n_epochs=50, lr=5e-4, test=True):
 
     im_train = [
         io.imread(Path(root / "noisy_test" / "care" / "source" /
-                       f"{i:03d}.tif"))[np.newaxis, :, :] for i in range(n_train)
+                       f"{i:03d}.tif"))[0][np.newaxis, :, :] for i in range(n_train)
     ]
     im_train.extend(test_noisy)
     im_val = [
-        io.imread(Path(root / "noisy_test" / "care" / "source" / f"{i:03d}.tif"))
+        io.imread(Path(root / "noisy_test" / "care" / "source" / f"{i:03d}.tif"))[0]
         for i in range(n_train, n_train + n_val)
     ]
 

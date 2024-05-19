@@ -1958,8 +1958,6 @@ class MainW(QMainWindow):
                 img.setImage(image, autoLevels=False, lut=None)
                 img.setLevels(self.saturation["gray"][self.currentZ])
                 self.p0.addItem(img)
-                
-                
             elif self.color[0] == 2:
                 print("spectral")
                 if "spectral" in self.display_img:
@@ -1977,7 +1975,7 @@ class MainW(QMainWindow):
             # show individual channel image or RGB
             else:
                 print("RGB or ind channels")
-                # image = np.zeros(image[...,:3].shape)
+                # image = np.zeros(image[...,:3].shape)0    
                 
                 All_levels = False
                 if self.color[0] == 0:

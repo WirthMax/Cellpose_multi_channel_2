@@ -24,10 +24,10 @@ def cyto(test_root, save_root, save_figure=False):
     """ cyto performance, main fig 2 """
     ntest = len(glob(os.path.join(test_root, '*_img.tif')))
     test_data = [
-        io.imread(os.path.join(test_root, '%03d_img.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_img.tif' % i))[0] for i in range(ntest)
     ]
     test_labels = [
-        io.imread(os.path.join(test_root, '%03d_masks.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_masks.tif' % i))[0] for i in range(ntest)
     ]
 
     masks = [[], []]
@@ -162,7 +162,7 @@ def cyto(test_root, save_root, save_figure=False):
                         transform=ax.transAxes)
 
     ax = fig.add_axes([.05, .37, .25, .65])
-    img = io.imread(os.path.join(save_root, 'figs/training_schematic_final.PNG'))
+    img = io.imread(os.path.join(save_root, 'figs/training_schematic_final.PNG'))[0]
     ax.imshow(img)
     ax.axis('off')
     ax.text(0, 1.09, 'a', fontsize=ltrf, transform=ax.transAxes)
@@ -177,10 +177,10 @@ def nuclei(test_root, save_root, save_figure=False):
     """ nuclei performance, suppfig """
     ntest = len(glob(os.path.join(test_root, '*_img.tif')))
     test_data = [
-        io.imread(os.path.join(test_root, '%03d_img.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_img.tif' % i))[0] for i in range(ntest)
     ]
     test_labels = [
-        io.imread(os.path.join(test_root, '%03d_masks.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_masks.tif' % i))[0] for i in range(ntest)
     ]
 
     masks = []
@@ -270,10 +270,10 @@ def suppfig_metrics(test_root, save_root, save_figure=False):
     """ cyto performance measured with AJI and boundary precision """
     ntest = len(glob(os.path.join(test_root, '*_img.tif')))
     test_data = [
-        io.imread(os.path.join(test_root, '%03d_img.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_img.tif' % i))[0] for i in range(ntest)
     ]
     test_labels = [
-        io.imread(os.path.join(test_root, '%03d_masks.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_masks.tif' % i))[0] for i in range(ntest)
     ]
 
     masks = []
@@ -376,10 +376,10 @@ def suppfig_cellpose_params(test_root, save_root, save_figure=False):
     # performance without specialized images
     ntest = len(glob(os.path.join(test_root, '*_img.tif')))
     test_data = [
-        io.imread(os.path.join(test_root, '%03d_img.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_img.tif' % i))[0] for i in range(ntest)
     ]
     test_labels = [
-        io.imread(os.path.join(test_root, '%03d_masks.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_masks.tif' % i))[0] for i in range(ntest)
     ]
     masks = []
     aps = []
@@ -482,10 +482,10 @@ def suppfig_metrics(test_root, save_root, save_figure=False):
     """ boundary / aji metrics """
     ntest = len(glob(os.path.join(test_root, '*_img.tif')))
     test_data = [
-        io.imread(os.path.join(test_root, '%03d_img.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_img.tif' % i))[0] for i in range(ntest)
     ]
     test_labels = [
-        io.imread(os.path.join(test_root, '%03d_masks.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_masks.tif' % i))[0] for i in range(ntest)
     ]
 
     masks = []
@@ -586,10 +586,10 @@ def mask_stats(test_root, save_root, save_figure=False):
     """ cyto performance broken down """
     ntest = len(glob(os.path.join(test_root, '*_img.tif')))
     test_data = [
-        io.imread(os.path.join(test_root, '%03d_img.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_img.tif' % i))[0] for i in range(ntest)
     ]
     test_labels = [
-        io.imread(os.path.join(test_root, '%03d_masks.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_masks.tif' % i))[0] for i in range(ntest)
     ]
 
     masks = []

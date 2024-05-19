@@ -179,12 +179,12 @@ def imread(filename):
             page = tif.series[0][0]
             shape, dtype = page.shape, page.dtype
             ltif = int(np.prod(full_shape) / np.prod(shape))
-            io_logger.info(f"reading tiff with {ltif} planes")
+            
+            io_logger.info(f"reading tiff with {ltif} planes, name {filename}")
             img = np.zeros((ltif, *shape), dtype=np.float32)
             for i, page in enumerate(tqdm(tif.series[0])):
                 # normalize to range of 0 - 1
                 page = page.asarray().astype(np.float32)
-                page = (page - np.min(page))/np.ptp(page)
                 img[i] = page
             img = img.reshape(full_shape)
         return img, metainf
@@ -205,6 +205,9 @@ def imread(filename):
             if img.ndim == 3:
                 img = img.transpose(2, 0, 1)
             return img, metadata
+    elif ext == ".npz":
+        data = np.load(filename)
+        img, metadata = data['image'].astype(np.float64), data['markers']
     elif ext != ".npy":
         try:
             img = cv2.imread(filename, -1)  #cv2.LOAD_IMAGE_ANYDEPTH)
@@ -303,7 +306,7 @@ def get_image_files(folder, mask_filter, imf=None, look_one_level_down=False):
     if look_one_level_down:
         folders = natsorted(glob.glob(os.path.join(folder, "*/")))
     folders.append(folder)
-    exts = [".png", ".jpg", ".jpeg", ".tif", ".tiff", ".dax", ".nd2", ".nrrd"]
+    exts = [".png", ".jpg", ".jpeg", ".tif", ".tiff", ".dax", ".nd2", ".nrrd", ".npz"]
     l0 = 0
     al = 0
     for folder in folders:
@@ -434,13 +437,14 @@ def load_images_labels(tdir, mask_filter="_masks", image_filter=None,
         if os.path.isfile(label_names[n]) or os.path.isfile(flow_names[0]):
             image, metainf = imread(image_names[n])
             if label_names is not None:
-                label = imread(label_names[n])
+                label, _ = imread(label_names[n])
             if flow_names is not None:
-                flow = imread(flow_names[n])
+                flow, metainf = imread(flow_names[n])
                 if flow.shape[0] < 4:
                     label = np.concatenate((label[np.newaxis, :, :], flow), axis=0)
                 else:
                     label = flow
+                    
             images.append(image)
             labels.append(label)
             k += 1
@@ -475,7 +479,6 @@ def load_train_test_data(train_dir, test_dir=None, image_filter=None,
     if test_dir is not None:
         test_images, test_labels, test_image_names, metainf = load_images_labels(
             test_dir, mask_filter, image_filter, look_one_level_down)
-
     return images, labels, image_names, test_images, test_labels, test_image_names
 
 def masks_flows_to_seg(images, masks, flows, file_names, diams=30., channels=None,

@@ -32,9 +32,9 @@ def get_styles(pretrained_model, train_files, train_types, test_files, test_type
             inds = np.arange(ibatch, min(nimg, ibatch + batch_size))
 
             #lbls = [imread(os.path.splitext(files[i])[0] + f'_flows.tif') for i in inds]
-            imgs = [reshape_and_normalize(imread(files[i]), types[i]) for i in inds]
+            imgs = [reshape_and_normalize(imread(files[i])[0], types[i]) for i in inds]
             masks = [
-                imread(os.path.splitext(files[i])[0] + f'_masks.tif') for i in inds
+                imread(os.path.splitext(files[i])[0] + f'_masks.tif')[0] for i in inds
             ]
             diams = np.array([utils.diameters(lbl)[0] for lbl in masks])
             diams[diams < 5.] = 5.
@@ -159,12 +159,12 @@ def train_style_net(root, style_path, pretrained_model=None, diam_mean=30.,
     itrain = np.nonzero(train_labels == istyle)[0]
 
     train_istyle = [
-        reshape_and_normalize(imread(train_files[i]), train_types[i])
+        reshape_and_normalize(imread(train_files[i])[0], train_types[i])
         for i in tqdm(itrain)
     ]
 
     lbls_istyle = [
-        imread(os.path.splitext(train_files[i])[0] + f'_flows.tif')
+        imread(os.path.splitext(train_files[i])[0] + f'_flows.tif')[0]
         for i in tqdm(itrain)
     ]
     model_path = model.train(train_istyle, lbls_istyle, train_files=None,
@@ -176,10 +176,10 @@ def train_style_net(root, style_path, pretrained_model=None, diam_mean=30.,
 
     itest = np.nonzero(test_labels == istyle)[0]
     test_istyle = [
-        reshape_and_normalize(imread(test_files[i]), test_types[i]) for i in tqdm(itest)
+        reshape_and_normalize(imread(test_files[i])[0], test_types[i]) for i in tqdm(itest)
     ]
     masks_istyle = [
-        imread(os.path.splitext(test_files[i])[0] + f'_masks.tif') for i in itest
+        imread(os.path.splitext(test_files[i])[0] + f'_masks.tif')[0] for i in itest
     ]
 
     diams = np.array([utils.diameters(lbl)[0] for lbl in masks_istyle])
@@ -327,11 +327,11 @@ def train_general_net(
             inds = rperm[k:kend]
 
             imgs = [
-                reshape_and_normalize(imread(train_files[i]), train_types[i])
+                reshape_and_normalize(imread(train_files[i])[0], train_types[i])
                 for i in inds
             ]
             lbls = [
-                imread(os.path.splitext(train_files[i])[0] + f'_flows.tif')
+                imread(os.path.splitext(train_files[i])[0] + f'_flows.tif')[0]
                 for i in inds
             ]
             diams = np.array([utils.diameters(lbl[0])[0] for lbl in lbls])
@@ -373,11 +373,11 @@ def eval_model(model_path, test_files, test_types, use_gpu=True, flow_threshold=
                                  gpu=use_gpu)
     print(model.pretrained_model)
     test_data = [
-        reshape_and_normalize(imread(test_files[i]), test_types[i])
+        reshape_and_normalize(imread(test_files[i])[0], test_types[i])
         for i in trange(len(test_files))
     ]
     masks_data = [
-        imread(os.path.splitext(test_files[i])[0] + f'_masks.tif')
+        imread(os.path.splitext(test_files[i])[0] + f'_masks.tif')[0]
         for i in trange(len(test_files))
     ]
 

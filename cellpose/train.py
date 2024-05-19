@@ -9,6 +9,9 @@ from torch import nn
 from tqdm import trange
 from numba import prange
 
+import matplotlib.pyplot as plt
+from matplotlib import cm
+
 import logging
 
 train_logger = logging.getLogger(__name__)
@@ -56,7 +59,7 @@ def _get_batch(inds, data=None, labels=None, files=None, labels_files=None,
         tuple: A tuple containing two lists: the batch of images and the batch of labels.
     """
     if data is None:
-        imgs = [io.imread(files[i]) for i in inds]
+        imgs = [io.imread(files[i])[0] for i in inds]
         if channels is not None:
             imgs = [
                 transforms.convert_image(img, channels=channels,
@@ -68,7 +71,7 @@ def _get_batch(inds, data=None, labels=None, files=None, labels_files=None,
                 transforms.normalize_img(img, normalize=normalize_params, axis=0)
                 for img in imgs
             ]
-        lbls = [io.imread(labels_files[i])[1:] for i in inds]
+        lbls = [io.imread(labels_files[i])[0][1:] for i in inds]
     else:
         imgs = [data[i] for i in inds]
         lbls = [labels[i][1:] for i in inds]
@@ -108,7 +111,7 @@ def _reshape_norm_save(files, channels=None, channel_axis=None,
     """ not currently used -- normalization happening on each batch if not load_files """
     files_new = []
     for f in trange(files):
-        td = io.imread(f)
+        td = io.imread(f)[0]
         if channels is not None:
             td = transforms.convert_image(td, channels=channels,
                                           channel_axis=channel_axis, nchan=None)
@@ -171,12 +174,12 @@ def _process_train_test(train_data=None, train_labels=None, train_files=None,
         else:
             # load all images
             train_logger.info(">>> loading images and labels")
-            train_data = [io.imread(train_files[i]) for i in trange(nimg)]
-            train_labels = [io.imread(train_labels_files[i]) for i in trange(nimg)]
+            train_data = [io.imread(train_files[i])[0] for i in trange(nimg)]
+            train_labels = [io.imread(train_labels_files[i])[0] for i in trange(nimg)]
         nimg_test = len(test_files) if test_files is not None else None
         if load_files and nimg_test:
-            test_data = [io.imread(test_files[i]) for i in trange(nimg_test)]
-            test_labels = [io.imread(test_labels_files[i]) for i in trange(nimg_test)]
+            test_data = [io.imread(test_files[i])[0] for i in trange(nimg_test)]
+            test_labels = [io.imread(test_labels_files[i])[0] for i in trange(nimg_test)]
 
     ### check that arrays are correct size
     if ((train_labels is not None and nimg != len(train_labels)) or
@@ -207,19 +210,19 @@ def _process_train_test(train_data=None, train_labels=None, train_files=None,
                                                    device=device)
     elif compute_flows:
         for k in trange(nimg):
-            tl = dynamics.labels_to_flows(io.imread(train_labels_files),
+            tl = dynamics.labels_to_flows(io.imread(train_labels_files)[0],
                                           files=train_files, device=device)
         train_labels_files = [
             os.path.splitext(str(tf))[0] + "_flows.tif" for tf in train_files
         ]
         if test_files is not None:
             for k in trange(nimg_test):
-                tl = dynamics.labels_to_flows(io.imread(test_labels_files),
+                tl = dynamics.labels_to_flows(io.imread(test_labels_files)[0],
                                               files=test_files, device=device)
             test_labels_files = [
                 os.path.splitext(str(tf))[0] + "_flows.tif" for tf in test_files
             ]
-
+    
     ### compute diameters
     nmasks = np.zeros(nimg)
     diam_train = np.zeros(nimg)
@@ -242,7 +245,6 @@ def _process_train_test(train_data=None, train_labels=None, train_files=None,
         diam_test[diam_test < 5] = 5.
     else:
         diam_test = None
-
     ### check to remove training images with too few masks
     if min_train_masks > 0:
         nremove = (nmasks < min_train_masks).sum()
@@ -261,7 +263,6 @@ def _process_train_test(train_data=None, train_labels=None, train_files=None,
             if train_probs is not None:
                 train_probs = train_probs[ikeep]
             diam_train = diam_train[ikeep]
-
     ### normalize probabilities
     train_probs = 1. / nimg * np.ones(nimg,
                                       "float64") if train_probs is None else train_probs
@@ -347,7 +348,6 @@ def train_seg(net, train_data=None, train_labels=None, train_files=None,
     else:
         normalize_params = models.normalize_default
         normalize_params["normalize"] = normalize
-
     out = _process_train_test(
         train_data=train_data, train_labels=train_labels, train_files=train_files,
         train_labels_files=train_labels_files, train_probs=train_probs,
@@ -423,9 +423,13 @@ def train_seg(net, train_data=None, train_labels=None, train_files=None,
             diams = np.array([diam_train[i] for i in inds])
             rsc = diams / net.diam_mean.item()
             # augmentations
-            imgi, lbl = transforms.random_rotate_and_resize(imgs, Y=lbls, rescale=rsc,
-                                                            scale_range=scale_range)[:2]
-
+            if net.model_string == "Transformer":
+                imgi, lbl = transforms.random_rotate_and_resize(imgs, Y=lbls, rescale=rsc,
+                                                                scale_range=scale_range,
+                                                                xy=(448, 448))[:2]
+            else: 
+                imgi, lbl = transforms.random_rotate_and_resize(imgs, Y=lbls, rescale=rsc,
+                                                                scale_range=scale_range)[:2]
             X = torch.from_numpy(imgi).to(device)
             y = net(X)[0]
             loss = _loss_fn_seg(lbl, y, device)
@@ -459,8 +463,13 @@ def train_seg(net, train_data=None, train_labels=None, train_files=None,
                                                 normalize_params=normalize_params)
                         diams = np.array([diam_test[i] for i in inds])
                         rsc = diams / net.diam_mean.item()
-                        imgi, lbl = transforms.random_rotate_and_resize(
-                            imgs, Y=lbls, rescale=rsc, scale_range=scale_range)[:2]
+                        if net.model_string == "Transformer":
+                            imgi, lbl = transforms.random_rotate_and_resize(
+                                imgs, Y=lbls, rescale=rsc, scale_range=scale_range,
+                                xy = (448, 448))[:2]
+                        else:
+                            imgi, lbl = transforms.random_rotate_and_resize(
+                                imgs, Y=lbls, rescale=rsc, scale_range=scale_range)[:2]
                         X = torch.from_numpy(imgi).to(device)
                         y = net(X)[0]
                         loss = _loss_fn_seg(lbl, y, device)

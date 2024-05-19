@@ -92,18 +92,18 @@ def train_unets(data_root):
     # load images
     train_root = os.path.join(data_root, 'train/')
     train_data = [
-        io.imread(os.path.join(train_root, '%03d_img.tif' % i)) for i in range(ntrain)
+        io.imread(os.path.join(train_root, '%03d_img.tif' % i))[0] for i in range(ntrain)
     ]
     train_labels = [
-        io.imread(os.path.join(train_root, '%03d_masks.tif' % i)) for i in range(ntrain)
+        io.imread(os.path.join(train_root, '%03d_masks.tif' % i))[0] for i in range(ntrain)
     ]
 
     test_root = os.path.join(data_root, 'test/')
     test_data = [
-        io.imread(os.path.join(test_root, '%03d_img.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_img.tif' % i))[0] for i in range(ntest)
     ]
     test_labels = [
-        io.imread(os.path.join(test_root, '%03d_masks.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_masks.tif' % i))[0] for i in range(ntest)
     ]
 
     # train networks
@@ -147,10 +147,10 @@ def test_unets(model_root, test_root, save_root, model_type='cyto'):
     aps = np.zeros((len(concatenation), ntest, len(thresholds)))
 
     test_data = [
-        io.imread(os.path.join(test_root, '%03d_img.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_img.tif' % i))[0] for i in range(ntest)
     ]
     test_labels = [
-        io.imread(os.path.join(test_root, '%03d_masks.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_masks.tif' % i))[0] for i in range(ntest)
     ]
 
     if model_type != 'cyto_sp':
@@ -198,15 +198,15 @@ def train_cellpose_nets(data_root):
         # load images
         train_root = os.path.join(data_root, 'train%d/' % j)
         train_data = [
-            io.imread(os.path.join(train_root, '%03d_img.tif' % i))
+            io.imread(os.path.join(train_root, '%03d_img.tif' % i))[0]
             for i in range(ntrain)
         ]
         train_labels = [
-            io.imread(os.path.join(train_root, '%03d_masks.tif' % i))
+            io.imread(os.path.join(train_root, '%03d_masks.tif' % i))[0]
             for i in range(ntrain)
         ]
         train_flow_labels = [
-            io.imread(os.path.join(train_root, '%03d_img_flows.tif' % i))
+            io.imread(os.path.join(train_root, '%03d_img_flows.tif' % i))[0]
             for i in range(ntrain)
         ]
         train_labels = [
@@ -215,14 +215,14 @@ def train_cellpose_nets(data_root):
         ]
         test_root = os.path.join(data_root, 'test%d/' % j)
         test_data = [
-            io.imread(os.path.join(test_root, '%03d_img.tif' % i)) for i in range(ntest)
+            io.imread(os.path.join(test_root, '%03d_img.tif' % i))[0] for i in range(ntest)
         ]
         test_labels = [
-            io.imread(os.path.join(test_root, '%03d_masks.tif' % i))
+            io.imread(os.path.join(test_root, '%03d_masks.tif' % i))[0]
             for i in range(ntest)
         ]
         test_flow_labels = [
-            io.imread(os.path.join(test_root, '%03d_img_flows.tif' % i))
+            io.imread(os.path.join(test_root, '%03d_img_flows.tif' % i))[0]
             for i in range(ntest)
         ]
         test_labels = [
@@ -287,7 +287,7 @@ def test_cellpose_main(data_root, save_root):
 
 def test_timing(test_root, save_root):
     itest = 14
-    test_data = io.imread(os.path.join(test_root, '%03d_img.tif' % itest))
+    test_data = io.imread(os.path.join(test_root, '%03d_img.tif' % itest))[0]
     dat = np.load(os.path.join(test_root, 'predicted_diams.npy'),
                   allow_pickle=True).item()
     rescale = 30. / dat['predicted_diams'][itest]
@@ -324,7 +324,7 @@ def test_cellpose(test_root, save_root, pretrained_models, diam_file=None,
         channels = [0, 0]
 
     test_data = [
-        io.imread(os.path.join(test_root, '%03d_img.tif' % i)) for i in range(ntest)
+        io.imread(os.path.join(test_root, '%03d_img.tif' % i))[0] for i in range(ntest)
     ]
 
     # saved diameters
@@ -397,10 +397,10 @@ def test_cellpose_kfold_aug(data_root, save_root):
 
         test_root = os.path.join(data_root, 'test%d/' % j)
         test_data = [
-            io.imread(os.path.join(test_root, '%03d_img.tif' % i)) for i in range(ntest)
+            io.imread(os.path.join(test_root, '%03d_img.tif' % i))[0] for i in range(ntest)
         ]
         test_labels = [
-            io.imread(os.path.join(test_root, '%03d_masks.tif' % i))
+            io.imread(os.path.join(test_root, '%03d_masks.tif' % i))[0]
             for i in range(ntest)
         ]
 
@@ -442,10 +442,10 @@ def test_cellpose_kfold(data_root, save_root):
 
         test_root = os.path.join(data_root, 'test%d/' % j)
         test_data = [
-            io.imread(os.path.join(test_root, '%03d_img.tif' % i)) for i in range(ntest)
+            io.imread(os.path.join(test_root, '%03d_img.tif' % i))[0] for i in range(ntest)
         ]
         test_labels = [
-            io.imread(os.path.join(test_root, '%03d_masks.tif' % i))
+            io.imread(os.path.join(test_root, '%03d_masks.tif' % i))[0]
             for i in range(ntest)
         ]
 
@@ -489,7 +489,7 @@ def size_distributions(data_root, save_root):
     for j in range(9):
         test_root = os.path.join(data_root, 'test%d/' % j)
         test_labels = [
-            io.imread(os.path.join(test_root, '%03d_masks.tif' % i))
+            io.imread(os.path.join(test_root, '%03d_masks.tif' % i))[0]
             for i in range(ntest)
         ]
         sz_dist[j] = np.array([utils.size_distribution(lbl) for lbl in test_labels])
