@@ -606,7 +606,7 @@ class PatchEmbed3D(nn.Module):
         norm_layer (nn.Module, optional): Normalization layer. Default: None
     """
 
-    def __init__(self, patch_size=(4, 4, 4), in_chans=1, embed_dim=96, norm_layer=None):
+    def __init__(self, patch_size=(4, 4, 4), in_chans=1, embed_dim=48, norm_layer=None):
         super().__init__()
         self.patch_size = patch_size
 
@@ -742,7 +742,7 @@ class downsample(nn.Module):
                  pos_drop,
                  conv_3D=True, 
                  max_pool=True,
-                 embed_dim=96,
+                 embed_dim=48,
                  depths=[2, 2, 2, 1],
                  num_heads=[3, 6, 12, 24],
                  window_size=(7, 7, 7),
@@ -814,7 +814,7 @@ class upsample(nn.Module):
 
     def __init__(self, 
                  nbase, 
-                 embed_dim=96,
+                 embed_dim=48,
                  depths=[2, 2, 2, 1],
                  num_heads=[3, 6, 12, 24],
                  window_size=(7, 7, 7),
@@ -1048,7 +1048,7 @@ class Transformer_CPnet(nn.Module):
     """
 
     def __init__(self, nbase, nout, sz, mkldnn=False, conv_3D=True, max_pool=True,
-                 diam_mean=30.,embed_dim=96):
+                 diam_mean=30.,embed_dim=48):
         super().__init__()
         self.nbase = nbase
         self.nout = nout
@@ -1167,12 +1167,7 @@ class Transformer_CPnet(nn.Module):
             self.__init__(self.nbase, self.nout, self.sz, self.mkldnn, self.conv_3D,
                           self.diam_mean)
             state_dict = torch.load(filename, map_location=torch.device("cpu"))
-
-        if state_dict["output.2.weight"].shape[0] != self.nout:
-            for name in self.state_dict():
-                if "output" not in name:
-                    self.state_dict()[name].copy_(state_dict[name])
-        else:
-            self.load_state_dict(
-                dict([(name, param) for name, param in state_dict.items()]),
-                strict=False)
+        
+        self.load_state_dict(
+            dict([(name, param) for name, param in state_dict.items()]),
+            strict=False)

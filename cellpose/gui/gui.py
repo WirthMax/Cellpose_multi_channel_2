@@ -661,30 +661,7 @@ class MainW(QMainWindow):
 
         self.NZ = 1
         self._init_sliders()
-        # b0 += 1
-        # self.sliders = []
-        # colors = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [100, 100, 100]]
-        # colornames = ["red", "Chartreuse", "DodgerBlue"]
-        # names = ["red", "green", "blue"]
-        # for r in range(3):
-        #     b0 += 1
-        #     if r == 0:
-        #         label = QLabel('<font color="gray">gray/</font><br>red')
-        #     else:
-        #         label = QLabel(names[r] + ":")
-        #     label.setStyleSheet(f"color: {colornames[r]}")
-        #     label.setFont(self.boldmedfont)
-        #     self.satBoxG.addWidget(label, b0, 0, 1, 2)
-        #     self.sliders.append(Slider(self, names[r], colors[r]))
-        #     self.sliders[-1].setMinimum(-.1)
-        #     self.sliders[-1].setMaximum(255.1)
-        #     self.sliders[-1].setValue([0, 255])
-        #     self.sliders[-1].setToolTip(
-        #         "NOTE: manually changing the saturation bars does not affect normalization in segmentation"
-        #     )
-        #     #self.sliders[-1].setTickPosition(QSlider.TicksRight)
-        #     self.satBoxG.addWidget(self.sliders[-1], b0, 2, 1, 7)
-
+        
         b += 1
         self.drawBox = QGroupBox("Drawing")
         self.drawBox.setFont(self.boldfont)
@@ -957,10 +934,24 @@ class MainW(QMainWindow):
         b += 1
         b0 = 0
         self.modelBox = QGroupBox("Other models")
+        
+        
         self.modelBoxG = QGridLayout()
         self.modelBox.setLayout(self.modelBoxG)
         self.l0.addWidget(self.modelBox, b, 0, 1, 9)
         self.modelBox.setFont(self.boldfont)
+        
+        self.Transformer_check = QCheckBox("use Transformer")
+        self.Transformer_check.setToolTip(
+            "If you want to use a transformer based model, check this box"
+        )
+        self.Transformer_check.setFont(self.medfont)
+        self.Transformer_check.setChecked(False)
+        # self.Transformer_check.toggled.connect(self.shdhwd)
+        self.SCheckBox.setEnabled(False)
+        self.modelBoxG.addWidget(self.Transformer_check, b, 0, 1, 3)
+
+        b+=1
         # choose models
         self.ModelChooseC = QComboBox()
         self.ModelChooseC.setFont(self.medfont)
@@ -2447,16 +2438,27 @@ class MainW(QMainWindow):
             self.current_model_path = models.model_path(self.current_model)
 
     def initialize_model(self, model_name=None, custom=False):
+        
+        if self.Transformer_check.isChecked():
+            print("Transformer_check checked")
+            self.architecture = "Transformer"
+        else:
+            self.architecture = "Unet"
+            
+        print("architecture", self.architecture)
+        print("Model name", model_name)
+            
         if model_name == "dataset-specific models":
             raise ValueError("need to specify model (use dropdown)")
         elif model_name is None or custom:
             self.get_model_path(custom=custom)
             if not os.path.exists(self.current_model_path):
                 raise ValueError("need to specify model (use dropdown)")
-
         if model_name is None or not isinstance(model_name, str):
+            print(1)
             self.model = models.CellposeModel(gpu=self.useGPU.isChecked(),
-                                              pretrained_model=self.current_model_path)
+                                        pretrained_model=self.current_model_path,
+                                        architecture = self.architecture)
         else:
             self.current_model = model_name
             if self.current_model == "cyto" or self.current_model == "nuclei":
@@ -2466,13 +2468,19 @@ class MainW(QMainWindow):
                     models.MODEL_DIR.joinpath(self.current_model))
 
             if self.current_model != "cyto3":
+                print(2)    
+                print(self.current_model)    
+                print(self.architecture)    
                 diam_mean = 17. if self.current_model == "nuclei" else 30.
                 self.model = models.CellposeModel(gpu=self.useGPU.isChecked(),
-                                                  diam_mean=diam_mean,
-                                                  model_type=self.current_model)
+                                                pretrained_model=self.current_model_path,
+                                                diam_mean=diam_mean,
+                                                model_type=self.current_model,
+                                                architecture = self.architecture)
             else:
                 self.model = models.Cellpose(gpu=self.useGPU.isChecked(),
-                                             model_type=self.current_model)
+                                            model_type=self.current_model,
+                                            architecture = self.architecture)
 
     def add_model(self):
         io._add_model(self)
@@ -2517,7 +2525,8 @@ class MainW(QMainWindow):
         )
 
         self.model = models.CellposeModel(gpu=self.useGPU.isChecked(),
-                                          model_type=model_type)
+                                          model_type=model_type,
+                                          architecture = self.architecture)
         self.SizeButton.setEnabled(False)
         save_path = os.path.dirname(self.filename)
 
@@ -2833,3 +2842,4 @@ class MainW(QMainWindow):
                 self.recompute_masks = False
         # except Exception as e:
         #     print("ERROR: %s"%e)
+        

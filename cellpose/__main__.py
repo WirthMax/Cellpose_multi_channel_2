@@ -139,7 +139,7 @@ def main():
 
             # handle built-in model exceptions
             if builtin_size and restore_type is None:
-                model = models.Cellpose(gpu=gpu, device=device, model_type=model_type)
+                model = models.Cellpose(gpu=gpu, device=device, model_type=model_type, architecture=args.architecture)
             else:
                 builtin_size = False
                 if args.all_channels:
@@ -148,7 +148,8 @@ def main():
                 if restore_type is None:
                     model = models.CellposeModel(gpu=gpu, device=device,
                                                  pretrained_model=pretrained_model,
-                                                 model_type=model_type)
+                                                 model_type=model_type, 
+                                                 architecture=args.architecture)
                 else:
                     model = denoise.CellposeDenoiseModel(gpu=gpu, device=device,
                                                          pretrained_model=pretrained_model,
@@ -253,7 +254,8 @@ def main():
             model = models.CellposeModel(
                 device=device,
                 pretrained_model=pretrained_model if model_type is None else None,
-                model_type=model_type, diam_mean=szmean, nchan=nchan)
+                model_type=model_type, diam_mean=szmean, nchan=nchan,
+                architecture=args.architecture)
 
             # train segmentation model
             if args.train:

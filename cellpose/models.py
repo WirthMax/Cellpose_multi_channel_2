@@ -85,6 +85,8 @@ class Cellpose():
     """Main model which combines SizeModel and CellposeModel.
 
     Args:
+    
+        architecture (str): Whether to use the standard model or the transformer
         gpu (bool, optional): Whether or not to use GPU, will check if GPU available. Defaults to False.
         model_type (str, optional): Model type. "cyto"=cytoplasm model; "nuclei"=nucleus model; 
             "cyto2"=cytoplasm model with additional user images; 
@@ -101,7 +103,7 @@ class Cellpose():
 
     """
 
-    def __init__(self, gpu=False, model_type="cyto3", device=None):
+    def __init__(self, gpu=False, model_type="cyto3", architecture = "Unet", device=None):
         super(Cellpose, self).__init__()
 
         # assign device (GPU or CPU)
@@ -116,7 +118,7 @@ class Cellpose():
         if nuclear:
             self.diam_mean = 17.
 
-        self.cp = CellposeModel(device=self.device, gpu=self.gpu, model_type=model_type,
+        self.cp = CellposeModel(device=self.device, architecture = architecture, gpu=self.gpu, model_type=model_type,
                                 diam_mean=self.diam_mean)
         self.cp.model_type = model_type
 
@@ -204,6 +206,7 @@ class CellposeModel():
 
     Attributes:
         diam_mean (float): Mean "diameter" value for the model.
+        architecture (str): Whether to use the standard model or the transformer
         builtin (bool): Whether the model is a built-in model or not.
         device (torch device): Device used for model running / training.
         mkldnn (None or bool): MKLDNN flag for the model.
@@ -225,7 +228,7 @@ class CellposeModel():
     """
 
     def __init__(self, gpu=False, pretrained_model=False, model_type=None,
-                 diam_mean=30., device=None, nchan=2):
+                 diam_mean=30., device=None, nchan=2, architecture = "Unet"):
         """
         Initialize the CellposeModel.
 
@@ -239,7 +242,7 @@ class CellposeModel():
         """
         self.diam_mean = diam_mean
         builtin = True
-
+        self.architecture = architecture
         if model_type is not None or (pretrained_model and
                                       not os.path.exists(pretrained_model)):
             pretrained_model_string = model_type if model_type is not None else "cyto"
@@ -259,10 +262,7 @@ class CellposeModel():
                 self.diam_mean = 17.
             else:
                 self.diam_mean = 30.
-            if pretrained_model_string == "Transformer":
-                pretrained_model = None
-            else:
-                pretrained_model = model_path(pretrained_model_string)
+            
         else:
             builtin = False
             if pretrained_model:
@@ -286,16 +286,16 @@ class CellposeModel():
         nbase = [32, 64, 128, 256]
         self.nbase = [nchan, *nbase]
         # sz is input channel size?
-        if pretrained_model_string == "Transformer":
+        if self.architecture == "Transformer":
             print("SHOULD LOAD THE TRANSFORMER")
             self.net = Transformer_CPnet(self.nbase, self.nclasses, sz=3, mkldnn=self.mkldnn,
                          max_pool=True, diam_mean=diam_mean).to(self.device)
-            print("loaded")
         else:
             self.net = CPnet(self.nbase, self.nclasses, sz=3, mkldnn=self.mkldnn,
                          max_pool=True, diam_mean=diam_mean).to(self.device)
 
         self.pretrained_model = pretrained_model
+        print("PRETRAINED MDOEL", self.pretrained_model)
         if self.pretrained_model:
             self.net.load_model(self.pretrained_model, device=self.device)
             if not builtin:
@@ -308,7 +308,7 @@ class CellposeModel():
                 models_logger.info(
                     f">>>> model diam_labels = {self.diam_labels: .3f} (mean diameter of training ROIs)"
                 )
-
+        
         self.net_type = "cellpose"
 
     def eval(self, x, batch_size=8, resample=True, channels=None, channel_axis=None,
