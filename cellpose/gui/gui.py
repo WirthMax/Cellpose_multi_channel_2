@@ -1993,10 +1993,16 @@ class MainW(QMainWindow):
             image = np.zeros((self.Ly, self.Lx), np.uint8)
             if len(self.flows) >= self.view - 1 and len(self.flows[self.view - 1]) > 0:
                 image = self.flows[self.view - 1][self.currentZ]
+                img = pg.ImageItem(image)
+                # img.setCompositionMode(QtGui.QPainter.CompositionMode.CompositionMode_Plus)
             if self.view > 1:
-                self.img.setImage(image, autoLevels=False, lut=self.bwr)
+                img.setImage(image, autoLevels=False, lut=self.bwr)
+                self.p0.addItem(img)
+                # self.img.setImage(image, autoLevels=False, lut=self.bwr)
             else:
-                self.img.setImage(image, autoLevels=False, lut=None)
+                img.setImage(image, autoLevels=False, lut=None)
+                self.p0.addItem(img)
+                # self.img.setImage(image, autoLevels=False, lut=None)
             self.img.setLevels([0.0, 255.0])
 
         self.win.show()
